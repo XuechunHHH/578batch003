@@ -1,0 +1,28 @@
+# Exclude development and system files
+.git
+.gitignore
+.env
+*.log
+node_modules/
+npm-debug.log
+
+# Exclude test files
+test/
+*.test.js
+*.spec.js
+
+# Exclude documentation
+*.md
+docs/
+
+# Exclude development configs
+.eslintrc*
+.prettier*
+.editorconfig
+
+# Exclude source maps
+*.map
+
+# Exclude IDE files
+.vscode/
+.idea/
