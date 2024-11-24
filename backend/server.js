@@ -23,23 +23,7 @@ const cache = new NodeCache({
 const cryptoService = new CryptoService(cache);
 const mentionsService = new MentionsService(cache);
 
-// Configure CORS to allow Netlify domains and local development
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production'
-    ? [
-        'https://gentle-moonbeam-caa906.netlify.app',
-        /\.netlify\.app$/,
-        'https://ass2-test-2024.wl.r.appspot.com'
-      ]
-    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
-  methods: ['GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-  optionsSuccessStatus: 200,
-  maxAge: 3600
-};
-
-app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 
 // Health check endpoint

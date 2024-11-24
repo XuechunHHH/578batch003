@@ -3,7 +3,7 @@ import cron from 'node-cron';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 
 const API_ENDPOINTS = {
-  hackernews: 'https://hn.algolia.com/api/v1/search_by_date',
+  hackernews: 'https://hn.algolia.com/api/v1/search',
   devto: 'https://dev.to/api/articles',
   stackexchange: 'https://api.stackexchange.com/2.3/search'
 };
@@ -91,16 +91,26 @@ export class MentionsService {
 
   async fetchHackerNewsMentions(cryptoId, months) {
     try {
-      const response = await this.axiosInstance.get(API_ENDPOINTS.hackernews, {
-        params: {
-          query: cryptoId,
-          tags: '(story,comment)',
-          numericFilters: `created_at_i>${Math.floor(months[0].getTime() / 1000)}`,
-          hitsPerPage: 1000
-        }
-      });
+      const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
+        const startTime = Math.floor(startOfMonth(monthDate).getTime() / 1000);
+        const endTime = Math.floor(endOfMonth(monthDate).getTime() / 1000);
+        
+        const response = await this.axiosInstance.get(API_ENDPOINTS.hackernews, {
+          params: {
+            query: cryptoId,
+            tags: '(story,comment)',
+            numericFilters: `created_at_i>${startTime},created_at_i<${endTime}`,
+            hitsPerPage: 1000
+          }
+        });
 
-      return this.aggregateMonthlyMentions(response.data.hits || [], months, hit => new Date(hit.created_at));
+        // Add delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        return response.data.nbHits || 0;
+      }));
+
+      return monthlyMentions;
     } catch (error) {
       console.error('Error fetching HackerNews mentions:', error.message);
       throw error;
