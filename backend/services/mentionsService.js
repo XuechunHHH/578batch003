@@ -1,11 +1,14 @@
 import axios from 'axios';
 import cron from 'node-cron';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import supabase from '../utils/supabaseClient.js';
+
 
 const API_ENDPOINTS = {
   hackernews: 'https://hn.algolia.com/api/v1/search',
   devto: 'https://dev.to/api/articles',
-  stackexchange: 'https://api.stackexchange.com/2.3/search'
+  stackexchange: 'https://api.stackexchange.com/2.3/search',
+  guardian: 'https://content.guardianapis.com/search'
 };
 
 const CACHE_TTL = 86400; // 1 day in seconds
@@ -13,7 +16,23 @@ const RETRY_DELAY = 2000;
 const MAX_RETRIES = 3;
 
 export class MentionsService {
+
+
   constructor(cache) {
+    this.supabase = supabase;
+    this.typeIdMapping = {
+      bnb: 'binancecoin',
+      xrp: 'ripple',
+      usdc: 'usd-coin',
+      avalanche: 'avalanche-2',
+      bitcoin: 'bitcoin',
+      ethereum: 'ethereum',
+      tether: 'tether',
+      solana: 'solana',
+      dogecoin: 'dogecoin',
+      cardano: 'cardano',
+
+    };
     this.cache = cache;
     this.axiosInstance = axios.create({
       timeout: 10000,
@@ -39,10 +58,98 @@ export class MentionsService {
 
     // Schedule data collection once per day at midnight
     cron.schedule('0 0 * * *', () => this.collectMentionsData());
+    this.scheduleDailyScraping();
     
     // Initial data collection
     this.collectMentionsData();
   }
+
+  async scrapeAndSaveLaTimes(type, query) {
+    const url = `https://www.latimes.com/search?q=${query}&s=1&p=1`;
+    const newsType = type;
+  
+    try {
+      const today = new Date().toISOString().split('T')[0];
+  
+      const browser = await puppeteer.launch();
+      const page = await browser.newPage();
+  
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+  
+      const articles = await page.evaluate(() => {
+        const items = [];
+        document.querySelectorAll('ul > li > ps-promo').forEach((promo) => {
+          const titleElement = promo.querySelector('div > div.promo-content > div > h3 > a');
+          const timeElement = promo.querySelector('div > div.promo-content > time');
+  
+          if (titleElement && timeElement) {
+            const title = titleElement.textContent.trim();
+            const link = titleElement.href.trim();
+            const time = timeElement.getAttribute('datetime') || timeElement.textContent.trim();
+            items.push({ title, link, time });
+          }
+        });
+        return items;
+      });
+  
+      await browser.close();
+      console.log(`Scraped ${articles.length} articles for type "${newsType}"`);
+  
+      // Filter articles by today's date
+      const normalizedArticles = articles
+        .map((article) => ({
+          title: article.title,
+          link: article.link,
+          time: article.time,
+          type: newsType,
+          source: 'latimes',
+        }))
+        .filter((article) => {
+          const articleDate = new Date(article.time).toISOString().split('T')[0];
+          return articleDate === today;
+        });
+  
+      if (normalizedArticles.length === 0) {
+        console.log(`No articles found for today's date for type "${newsType}"`);
+        return;
+      }
+  
+      // Save to database
+      const { data, error } = await this.supabase
+        .from('news')
+        .upsert(normalizedArticles);
+  
+      if (error) {
+        throw new Error(`Failed to insert articles: ${error.message}`);
+      }
+  
+      console.log(`Successfully saved ${normalizedArticles.length} articles for type "${newsType}"`);
+    } catch (error) {
+      console.error(`Error in scrapeAndSaveNews for type "${newsType}": ${error.message}`);
+      throw error;
+    }
+  }
+  
+
+  scheduleDailyScraping() {
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    console.log('Scheduling daily scraping job...');
+  
+    cron.schedule('0 0 * * *', async () => {
+      console.log('Starting daily scraping job...');
+      for (const [type, query] of Object.entries(this.newsTypes)) {
+        try {
+          await this.scrapeAndSaveLaTimes(type, query);
+          console.log(`Completed scraping for type "${type}". Applying cooldown...`);
+          await delay(30000);
+        } catch (error) {
+          console.error(`Failed to scrape news for type "${type}": ${error.message}`);
+        }
+      }
+      console.log('Daily scraping job completed.');
+    });
+  }
+  
 
   async collectMentionsData() {
     console.log('Starting daily mentions data collection...');
@@ -73,10 +180,11 @@ export class MentionsService {
 
   async fetchMentionsForCrypto(cryptoId) {
     const months = this.getLast12Months();
-    const [hnData, devtoData, stackData] = await Promise.allSettled([
+    const [hnData, devtoData, stackData, laTimesData] = await Promise.allSettled([
       this.fetchHackerNewsMentions(cryptoId, months),
       this.fetchDevToMentions(cryptoId, months),
-      this.fetchStackExchangeMentions(cryptoId, months)
+      this.fetchStackExchangeMentions(cryptoId, months),
+      this.fetchLaTimesMentions(cryptoId, months)
     ]);
 
     return {
@@ -84,9 +192,39 @@ export class MentionsService {
       datasets: [
         { name: 'HackerNews', data: hnData.status === 'fulfilled' ? hnData.value : months.map(() => 0) },
         { name: 'Dev.to', data: devtoData.status === 'fulfilled' ? devtoData.value : months.map(() => 0) },
-        { name: 'StackExchange', data: stackData.status === 'fulfilled' ? stackData.value : months.map(() => 0) }
+        { name: 'StackExchange', data: stackData.status === 'fulfilled' ? stackData.value : months.map(() => 0) },
+        { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) }
       ]
     };
+  }
+  async fetchLaTimesMentions(cryptoId, months) {
+    try {
+      const dbType = Object.keys(this.typeIdMapping).find(
+        (key) => this.typeIdMapping[key] === cryptoId
+      );
+      const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
+        const startTime = startOfMonth(monthDate).toISOString();
+        const endTime = endOfMonth(monthDate).toISOString();
+
+        const { data, error } = await this.supabase
+          .from('news')
+          .select('id') // Only select the id for counting mentions
+          .eq('type', dbType)
+          .gte('time', startTime)
+          .lte('time', endTime);
+        if (error) {
+          throw new Error(`Error querying Supabase: ${error.message}`);
+        }
+
+        // Return the number of mentions for this month
+        return data.length || 0;
+      }));
+
+      return monthlyMentions;
+    } catch (error) {
+      console.error('Error fetching Supabase mentions:', error.message);
+      throw error;
+    }
   }
 
   async fetchHackerNewsMentions(cryptoId, months) {
