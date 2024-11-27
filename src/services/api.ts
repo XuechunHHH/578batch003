@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
-  : 'http://localhost:5001/api';
+// const API_BASE_URL = process.env.NODE_ENV === 'production'
+//   ? 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
+//   : 'http://localhost:5001/api';
+
+const API_BASE_URL = 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
 
 const RETRY_DELAY = 2000;
 const MAX_RETRIES = 3;
