@@ -7,7 +7,6 @@ import supabase from '../utils/supabaseClient.js';
 const API_ENDPOINTS = {
   hackernews: 'https://hn.algolia.com/api/v1/search',
   devto: 'https://dev.to/api/articles',
-  stackexchange: 'https://api.stackexchange.com/2.3/search',
   guardian: 'https://content.guardianapis.com/search'
 };
 
@@ -180,10 +179,9 @@ export class MentionsService {
 
   async fetchMentionsForCrypto(cryptoId) {
     const months = this.getLast12Months();
-    const [hnData, devtoData, stackData, laTimesData] = await Promise.allSettled([
+    const [hnData, devtoData, laTimesData] = await Promise.allSettled([
       this.fetchHackerNewsMentions(cryptoId, months),
       this.fetchDevToMentions(cryptoId, months),
-      this.fetchStackExchangeMentions(cryptoId, months),
       this.fetchLaTimesMentions(cryptoId, months)
     ]);
 
@@ -192,7 +190,6 @@ export class MentionsService {
       datasets: [
         { name: 'HackerNews', data: hnData.status === 'fulfilled' ? hnData.value : months.map(() => 0) },
         { name: 'Dev.to', data: devtoData.status === 'fulfilled' ? devtoData.value : months.map(() => 0) },
-        { name: 'StackExchange', data: stackData.status === 'fulfilled' ? stackData.value : months.map(() => 0) },
         { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) }
       ]
     };
@@ -267,34 +264,6 @@ export class MentionsService {
       return this.aggregateMonthlyMentions(response.data || [], months, article => new Date(article.published_at));
     } catch (error) {
       console.error('Error fetching Dev.to mentions:', error.message);
-      throw error;
-    }
-  }
-
-  async fetchStackExchangeMentions(cryptoId, months) {
-    try {
-      const response = await this.axiosInstance.get(API_ENDPOINTS.stackexchange + '/questions', {
-        params: {
-          tagged: cryptoId,
-          site: 'bitcoin',
-          pagesize: 100,
-          fromdate: Math.floor(months[0].getTime() / 1000),
-          order: 'desc',
-          sort: 'creation',
-          filter: 'total'
-        },
-        headers: {
-          'Accept-Encoding': 'gzip'
-        }
-      });
-
-      return this.aggregateMonthlyMentions(
-        response.data?.items || [], 
-        months, 
-        question => new Date(question.creation_date * 1000)
-      );
-    } catch (error) {
-      console.error('Error fetching StackExchange mentions:', error.message);
       throw error;
     }
   }
