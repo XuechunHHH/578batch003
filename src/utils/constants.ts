@@ -1,8 +1,8 @@
-// export const API_BASE_URL = process.env.NODE_ENV === 'production'
-//   ? 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
-//   : 'http://localhost:5001/api';
+export const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
+  : 'http://localhost:5001/api';
 
-export const API_BASE_URL = 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api';
+// export const API_BASE_URL = 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api';
 
 export const AUTH_STORAGE_KEY = 'user';
 

@@ -58,7 +58,7 @@ export const Header = () => {
               className="flex items-center space-x-2 text-gray-400 hover:text-cyber-blue transition-colors duration-200"
             >
               <LogOut className="w-4 h-4" />
-              <span>Logout</span>
+              <span>{user?.id !== 'guest' ? 'Log out' : 'Sign in'}</span>
             </button>
           </div>
         </nav>
