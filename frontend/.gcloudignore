@@ -1,0 +1,9 @@
+# Exclude development and system files
+.git
+.gitignore
+node_modules/
+npm-debug.log
+
+# Include only the dist folder and necessary files
+!dist/
+!app.yaml
