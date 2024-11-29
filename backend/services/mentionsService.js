@@ -2,6 +2,8 @@ import axios from 'axios';
 import cron from 'node-cron';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import supabase from '../utils/supabaseClient.js';
+import puppeteer from 'puppeteer';
+import {model} from '../utils/llmClient.js';
 
 
 const API_ENDPOINTS = {
@@ -58,7 +60,7 @@ export class MentionsService {
     // Schedule data collection once per day at midnight
     cron.schedule('0 0 * * *', () => this.collectMentionsData());
     this.scheduleDailyScraping();
-
+    
     // Initial data collection
     this.collectMentionsData();
   }
@@ -66,21 +68,21 @@ export class MentionsService {
   async scrapeAndSaveLaTimes(type, query) {
     const url = `https://www.latimes.com/search?q=${query}&s=1&p=1`;
     const newsType = type;
-
+  
     try {
       const today = new Date().toISOString().split('T')[0];
-
+  
       const browser = await puppeteer.launch();
       const page = await browser.newPage();
-
+  
       await page.goto(url, { waitUntil: 'domcontentloaded' });
-
+  
       const articles = await page.evaluate(() => {
         const items = [];
         document.querySelectorAll('ul > li > ps-promo').forEach((promo) => {
           const titleElement = promo.querySelector('div > div.promo-content > div > h3 > a');
           const timeElement = promo.querySelector('div > div.promo-content > time');
-
+  
           if (titleElement && timeElement) {
             const title = titleElement.textContent.trim();
             const link = titleElement.href.trim();
@@ -90,38 +92,49 @@ export class MentionsService {
         });
         return items;
       });
-
+  
       await browser.close();
       console.log(`Scraped ${articles.length} articles for type "${newsType}"`);
-
+  
       // Filter articles by today's date
       const normalizedArticles = articles
-          .map((article) => ({
-            title: article.title,
-            link: article.link,
-            time: article.time,
-            type: newsType,
-            source: 'latimes',
-          }))
-          .filter((article) => {
-            const articleDate = new Date(article.time).toISOString().split('T')[0];
-            return articleDate === today;
-          });
+        .map((article) => ({
+          title: article.title,
+          link: article.link,
+          time: article.time,
+          type: newsType,
+          ai_sentiment: 5,
+          source: 'latimes',
+        }))
+        .filter((article) => {
+          const articleDate = new Date(article.time).toISOString().split('T')[0];
+          return articleDate === today;
+        });
 
+      for (let i = 0; i < normalizedArticles.length; i++) {
+        const article = normalizedArticles[i];
+        const prompt = `You are an expert in cryptocurrency. I will show you the latest news topic about a specific cryptocurrency, and you will only generate a number between 0-10 no more else, which count as the sentiment of this news to the cryptocurrency, 0 means completely negative and 10 means completely positive, and 5 means netural or irrelevant try to avoid 5, at least have some preference. Here is the news topic: ${article.title}`;
+        const result = await model.generateContent(prompt);
+        const sentiment = result.response.text();
+        console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
+        sentiment = isNaN(sentiment) ? 5 : sentiment;
+        article.ai_sentiment = sentiment;
+      }
+      
       if (normalizedArticles.length === 0) {
         console.log(`No articles found for today's date for type "${newsType}"`);
         return;
       }
-
+  
       // Save to database
       const { data, error } = await this.supabase
-          .from('news')
-          .upsert(normalizedArticles);
-
+        .from('news')
+        .upsert(normalizedArticles);
+  
       if (error) {
         throw new Error(`Failed to insert articles: ${error.message}`);
       }
-
+  
       console.log(`Successfully saved ${normalizedArticles.length} articles for type "${newsType}"`);
     } catch (error) {
       console.error(`Error in scrapeAndSaveNews for type "${newsType}": ${error.message}`);
@@ -129,14 +142,13 @@ export class MentionsService {
     }
   }
 
-
   scheduleDailyScraping() {
     const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     console.log('Scheduling daily scraping job...');
-
+  
     cron.schedule('0 0 * * *', async () => {
       console.log('Starting daily scraping job...');
-      for (const [type, query] of Object.entries(this.newsTypes)) {
+      for (const [type, query] of Object.entries(this.typeIdMapping)) {
         try {
           await this.scrapeAndSaveLaTimes(type, query);
           console.log(`Completed scraping for type "${type}". Applying cooldown...`);
@@ -148,12 +160,12 @@ export class MentionsService {
       console.log('Daily scraping job completed.');
     });
   }
-
+  
 
   async collectMentionsData() {
     console.log('Starting daily mentions data collection...');
     const cryptos = ['bitcoin', 'ethereum', 'tether', 'solana', 'binancecoin', 'ripple', 'usd-coin', 'cardano', 'avalanche-2', 'dogecoin'];
-
+    
     for (const crypto of cryptos) {
       try {
         const mentions = await this.fetchMentionsForCrypto(crypto);
@@ -179,11 +191,10 @@ export class MentionsService {
 
   async fetchMentionsForCrypto(cryptoId) {
     const months = this.getLast12Months();
-    const [hnData, devtoData, laTimesData, redditData] = await Promise.allSettled([
+    const [hnData, devtoData, laTimesData] = await Promise.allSettled([
       this.fetchHackerNewsMentions(cryptoId, months),
       this.fetchDevToMentions(cryptoId, months),
-      this.fetchLaTimesMentions(cryptoId, months),
-      this.fetchRedditMentions(cryptoId, months)
+      this.fetchLaTimesMentions(cryptoId, months)
     ]);
 
     return {
@@ -191,26 +202,25 @@ export class MentionsService {
       datasets: [
         { name: 'HackerNews', data: hnData.status === 'fulfilled' ? hnData.value : months.map(() => 0) },
         { name: 'Dev.to', data: devtoData.status === 'fulfilled' ? devtoData.value : months.map(() => 0) },
-        { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) },
-        { name: 'Reddit', data: redditData.status === 'fulfilled' ? redditData.value : months.map(() => 0) }
+        { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) }
       ]
     };
   }
   async fetchLaTimesMentions(cryptoId, months) {
     try {
       const dbType = Object.keys(this.typeIdMapping).find(
-          (key) => this.typeIdMapping[key] === cryptoId
+        (key) => this.typeIdMapping[key] === cryptoId
       );
       const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
         const startTime = startOfMonth(monthDate).toISOString();
         const endTime = endOfMonth(monthDate).toISOString();
 
         const { data, error } = await this.supabase
-            .from('news')
-            .select('id') // Only select the id for counting mentions
-            .eq('type', dbType)
-            .gte('time', startTime)
-            .lte('time', endTime);
+          .from('news')
+          .select('id') // Only select the id for counting mentions
+          .eq('type', dbType)
+          .gte('time', startTime)
+          .lte('time', endTime);
         if (error) {
           throw new Error(`Error querying Supabase: ${error.message}`);
         }
@@ -231,7 +241,7 @@ export class MentionsService {
       const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
         const startTime = Math.floor(startOfMonth(monthDate).getTime() / 1000);
         const endTime = Math.floor(endOfMonth(monthDate).getTime() / 1000);
-
+        
         const response = await this.axiosInstance.get(API_ENDPOINTS.hackernews, {
           params: {
             query: cryptoId,
@@ -243,7 +253,7 @@ export class MentionsService {
 
         // Add delay between requests to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 500));
-
+        
         return response.data.nbHits || 0;
       }));
 
@@ -270,73 +280,32 @@ export class MentionsService {
     }
   }
 
-  async fetchRedditMentions()(cryptoId, months) {
-  try {
-  // use my own mapping here
-  anotherTypeIdMapping = {
-    bnb: 'BNB',
-    xrp: 'XRP',
-    usdc: 'USDC',
-    avalanche: 'Avalanche',
-    bitcoin: 'Bitcoin',
-    ethereum: 'Ethereum',
-    tether: 'Tether',
-    solana: 'Solana',
-    dogecoin: 'Dogecoin',
-    cardano: 'Cardano',
+  aggregateMonthlyMentions(items, months, getDate) {
+    return months.map(monthDate => {
+      const monthInterval = {
+        start: startOfMonth(monthDate),
+        end: endOfMonth(monthDate)
+      };
 
-  };
-  const dbType = Object.keys(anotherTypeIdMapping).find(
-      (key) => this.typeIdMapping[key] === cryptoId
-  );
-  const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
-    const startTime = startOfMonth(monthDate).toISOString();
-    const endTime = endOfMonth(monthDate).toISOString();
-    const { data, error } = await this.supabase
-        .from('reddit')
-        .select('id') // Only select the id for counting mentions
-        .eq('type', dbType)
-        .gte('Created_UTC', startTime)
-        .lte('Created_UTC', endTime);
-    if (error) {
-      throw new Error(`Error querying Supabase: ${error.message}`);
-    }
-    // Return the number of mentions for this month
-    return data.length || 0;
-  }));
-  return monthlyMentions;
-} catch (error) {
-  console.error('Error fetching Supabase mentions:', error.message);
-  throw error;
-}
-}
-
-aggregateMonthlyMentions(items, months, getDate) {
-  return months.map(monthDate => {
-    const monthInterval = {
-      start: startOfMonth(monthDate),
-      end: endOfMonth(monthDate)
-    };
-
-    return items.filter(item => {
-      const itemDate = getDate(item);
-      return isWithinInterval(itemDate, monthInterval);
-    }).length;
-  });
-}
-
-async getMentionsData(cryptoId) {
-  const cacheKey = `mentions_${cryptoId}`;
-  const cachedData = this.cache.get(cacheKey);
-
-  if (cachedData) {
-    console.log('Returning cached mentions data');
-    return cachedData;
+      return items.filter(item => {
+        const itemDate = getDate(item);
+        return isWithinInterval(itemDate, monthInterval);
+      }).length;
+    });
   }
 
-  console.log('Fetching fresh mentions data');
-  const data = await this.fetchMentionsForCrypto(cryptoId);
-  this.cache.set(cacheKey, data, CACHE_TTL);
-  return data;
-}
+  async getMentionsData(cryptoId) {
+    const cacheKey = `mentions_${cryptoId}`;
+    const cachedData = this.cache.get(cacheKey);
+
+    if (cachedData) {
+      console.log('Returning cached mentions data');
+      return cachedData;
+    }
+
+    console.log('Fetching fresh mentions data');
+    const data = await this.fetchMentionsForCrypto(cryptoId);
+    this.cache.set(cacheKey, data, CACHE_TTL);
+    return data;
+  }
 }
