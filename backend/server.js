@@ -118,10 +118,12 @@ app.get('/api/crypto/:id/mentions', async (req, res, next) => {
   }
 });
 
-app.get('/api/latimes', async (req, res, next) => {
+app.get('/api/news', async (req, res, next) => {
   const page = parseInt(req.query.page, 10) || 1; 
+  const source = req.query.source || 'latimes';
+  const type = req.query.type || null;
   try {
-    const data = await socialMediaService.getLaTimesNewsFeed(page);
+    const data = await socialMediaService.getNewsFeed(page, 9, source, type);
     res.json(data);
   } catch (error) {
     next(error);
