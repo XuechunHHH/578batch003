@@ -2,6 +2,8 @@ import axios from 'axios';
 import cron from 'node-cron';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import supabase from '../utils/supabaseClient.js';
+import puppeteer from 'puppeteer';
+import {model} from '../utils/llmClient.js';
 
 
 const API_ENDPOINTS = {
@@ -102,13 +104,24 @@ export class MentionsService {
           link: article.link,
           time: article.time,
           type: newsType,
+          ai_sentiment: 5,
           source: 'latimes',
         }))
         .filter((article) => {
           const articleDate = new Date(article.time).toISOString().split('T')[0];
           return articleDate === today;
         });
-  
+      
+      for (let i = 0; i < normalizedArticles.length; i++) {
+        const article = normalizedArticles[i];
+        const prompt = `You are an expert in cryptocurrency. I will show you the latest news topic about a specific cryptocurrency, and you will only generate a number between 0-10 no more else, which count as the sentiment of this news to the cryptocurrency, 0 means completely negative and 10 means completely positive, and 5 means netural or irrelevant try to avoid 5, at least have some preference. Here is the news topic: ${article.title}`;
+        const result = await model.generateContent(prompt);
+        const sentiment = result.response.text();
+        console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
+        sentiment = isNaN(sentiment) ? 5 : sentiment;
+        article.ai_sentiment = sentiment;
+      }
+      
       if (normalizedArticles.length === 0) {
         console.log(`No articles found for today's date for type "${newsType}"`);
         return;
@@ -137,7 +150,7 @@ export class MentionsService {
   
     cron.schedule('0 0 * * *', async () => {
       console.log('Starting daily scraping job...');
-      for (const [type, query] of Object.entries(this.newsTypes)) {
+      for (const [type, query] of Object.entries(this.typeIdMapping)) {
         try {
           await this.scrapeAndSaveLaTimes(type, query);
           console.log(`Completed scraping for type "${type}". Applying cooldown...`);
