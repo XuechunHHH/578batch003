@@ -295,17 +295,14 @@ export class MentionsService {
         solana: 'Solana',
         dogecoin: 'Dogecoin',
         cardano: 'Cardano',
-
       };
-      const dbType = Object.keys(anotherTypeIdMapping).find(
-          (key) => this.typeIdMapping[key] === cryptoId
-      );
+      const dbType = anotherTypeIdMapping[cryptoId];
       const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
         const startTime = startOfMonth(monthDate).toISOString();
         const endTime = endOfMonth(monthDate).toISOString();
         const { data, error } = await this.supabase
             .from('reddit')
-            .select('id') // Only select the id for counting mentions
+            .select('id')
             .eq('type', dbType)
             .gte('Created_UTC', startTime)
             .lte('Created_UTC', endTime);
