@@ -65,6 +65,69 @@ export class MentionsService {
     this.collectMentionsData();
   }
 
+  async scrapeAndSaveHackerNews(type, query) {
+    try {
+      // Calculate the past 24-hour range
+      const endTime = Math.floor(Date.now() / 1000);
+      const startTime = endTime - 86400; // 24 hours before the current timestamp
+  
+      const response = await this.axiosInstance.get(API_ENDPOINTS.hackernews, {
+        params: {
+          query: query, 
+          tags: '(story,comment)',
+          numericFilters: `created_at_i>${startTime},created_at_i<${endTime}`,
+          hitsPerPage: 100,
+        },
+      });
+  
+      // Deduplicate articles by title
+      const seenTitles = new Set();
+      const normalizedArticles = response.data.hits
+        .map((article) => ({
+          title: article.title,
+          link: article.url,
+          time: article.created_at,
+          type: type,
+          ai_sentiment: 5,
+          source: 'hackernews',
+        }))
+        .filter((article) => {
+          if (!article.link || !article.title) {
+            return false;
+          }
+          if (seenTitles.has(article.title)) {
+            return false;
+          }
+          seenTitles.add(article.title);
+          return true;
+        });
+  
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let i = 0; i < normalizedArticles.length; i++) {
+        const article = normalizedArticles[i];
+        const prompt = `You are an expert in cryptocurrency. I will show you the latest news topic about a specific cryptocurrency, and you will only generate a number between 0-10 no more else, which count as the sentiment of this news to the cryptocurrency, 0 means completely negative and 10 means completely positive, and 5 means netural or irrelevant try to avoid 5, at least have some preference. Here is the news topic: ${article.title}`;
+        const result = await model.generateContent(prompt);
+        let sentiment = result.response.text();
+        console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
+        sentiment = isNaN(sentiment) ? 5 : sentiment;
+        article.ai_sentiment = sentiment;
+        await sleep(5000); // Wait for 5 seconds between requests
+      }
+  
+      // Upsert the articles into the database
+      const { data, error } = await this.supabase
+        .from('news')
+        .upsert(normalizedArticles, { onConflict: 'title' });
+      if (error) {
+        throw new Error(`Failed to insert articles: ${error.message}`);
+      }
+      console.log(`Successfully saved ${normalizedArticles.length} articles for type "${type}"`);
+    } catch (error) {
+      console.error('Error fetching and storing HackerNews:', error.message);
+      throw error;
+    }
+  }
+  
   async scrapeAndSaveLaTimes(type, query) {
     const url = `https://www.latimes.com/search?q=${query}&s=1&p=1`;
     const newsType = type;
@@ -156,6 +219,14 @@ export class MentionsService {
         } catch (error) {
           console.error(`Failed to scrape news for type "${type}": ${error.message}`);
         }
+        try {
+          await this.scrapeAndSaveHackerNews(type, query);
+          console.log(`Completed scraping for type "${type}". Applying cooldown...`);
+          await delay(30000);
+        } catch (error) {
+          console.error(`Failed to scrape news for type "${type}": ${error.message}`);
+        }
+
       }
       console.log('Daily scraping job completed.');
     });

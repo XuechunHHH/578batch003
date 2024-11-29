@@ -135,9 +135,13 @@ export const updateUserLikes = async (userId: string, likes: string[]): Promise<
   }
 };
 
-export const getLaTimesData = async (page: number): Promise<NewsData[]> => {
+export const getNewsData = async (page: number, source: String, type:String | null): Promise<NewsData[]> => {
   try {
-    const response = await api.get(`/latimes?page=${page}`);
+    let url = `/news?page=${page}&source=${source}`;
+    if (type) {
+      url += `&type=${type}`;
+    }
+    const response = await api.get(url);
     if (!response.data || !Array.isArray(response.data)) {
       throw new Error('Invalid data format received from server');
     }
