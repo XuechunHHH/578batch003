@@ -5,16 +5,17 @@ import { updateUserLikes } from '../services/api';
 interface LikesContextType {
   likes: string[];
   toggleLike: (cryptoId: string) => Promise<void>;
+  setLikes: (likes: string[]) => void;
 }
 
 const LikesContext = createContext<LikesContextType | undefined>(undefined);
 
 export const LikesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, updateUserData } = useAuth();
   const [likes, setLikes] = useState<string[]>([]);
 
   useEffect(() => {
-    if (user && user.likes) {
+    if (user?.likes) {
       setLikes(user.likes);
     }
   }, [user]);
@@ -29,13 +30,14 @@ export const LikesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const updatedLikes = await updateUserLikes(user.id, newLikes);
       setLikes(updatedLikes);
+      updateUserData({ ...user, likes: updatedLikes });
     } catch (error) {
       console.error('Error toggling like:', error);
     }
   };
 
   return (
-    <LikesContext.Provider value={{ likes, toggleLike }}>
+    <LikesContext.Provider value={{ likes, toggleLike, setLikes }}>
       {children}
     </LikesContext.Provider>
   );

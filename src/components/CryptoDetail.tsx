@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { createChart, ColorType, UTCTimestamp } from 'lightweight-charts';
 import { format } from 'date-fns';
-import { Activity, ArrowLeft } from 'lucide-react';
+import { Activity, ArrowLeft, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCryptoHistory } from '../services/api';
 
@@ -93,21 +93,42 @@ export const CryptoDetail = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto p-4 text-center text-red-500">
-        <p>{error}</p>
+      <div className="container mx-auto p-4">
+        <div className="bg-cyber-dark rounded-lg p-6 border border-red-500/20 text-center">
+          <p className="text-red-500">{error}</p>
+          <Link 
+            to="/"
+            className="inline-flex items-center space-x-2 mt-4 px-4 py-2 bg-cyber-darker text-cyber-blue border border-cyber-blue/20 rounded-lg hover:shadow-neon-blue transition-all duration-300"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Dashboard</span>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto p-4">
-      <Link 
-        to="/"
-        className="inline-flex items-center space-x-2 mb-6 px-4 py-2 rounded-lg bg-cyber-dark border border-cyber-blue/20 hover:shadow-neon-blue transition-all duration-300 text-cyber-blue hover:text-white"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back to Dashboard</span>
-      </Link>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <Link 
+          to="/"
+          className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-cyber-dark border border-cyber-blue/20 hover:shadow-neon-blue transition-all duration-300 text-cyber-blue hover:text-white"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Dashboard</span>
+        </Link>
+
+        <a
+          href={`https://www.coingecko.com/en/coins/${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-cyber-dark border border-cyber-pink/20 hover:shadow-neon-pink transition-all duration-300 text-cyber-pink hover:text-white"
+        >
+          <span>View on CoinGecko</span>
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
 
       <div className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
         <div className="mb-6">
