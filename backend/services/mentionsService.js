@@ -2,14 +2,11 @@ import axios from 'axios';
 import cron from 'node-cron';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import supabase from '../utils/supabaseClient.js';
-import puppeteer from 'puppeteer';
-import {model} from '../utils/llmClient.js';
 
 
 const API_ENDPOINTS = {
   hackernews: 'https://hn.algolia.com/api/v1/search',
   devto: 'https://dev.to/api/articles',
-  stackexchange: 'https://api.stackexchange.com/2.3/search',
   guardian: 'https://content.guardianapis.com/search'
 };
 
@@ -104,24 +101,13 @@ export class MentionsService {
           link: article.link,
           time: article.time,
           type: newsType,
-          ai_sentiment: 5,
           source: 'latimes',
         }))
         .filter((article) => {
           const articleDate = new Date(article.time).toISOString().split('T')[0];
           return articleDate === today;
         });
-      
-      for (let i = 0; i < normalizedArticles.length; i++) {
-        const article = normalizedArticles[i];
-        const prompt = `You are an expert in cryptocurrency. I will show you the latest news topic about a specific cryptocurrency, and you will only generate a number between 0-10 no more else, which count as the sentiment of this news to the cryptocurrency, 0 means completely negative and 10 means completely positive, and 5 means netural or irrelevant try to avoid 5, at least have some preference. Here is the news topic: ${article.title}`;
-        const result = await model.generateContent(prompt);
-        const sentiment = result.response.text();
-        console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
-        sentiment = isNaN(sentiment) ? 5 : sentiment;
-        article.ai_sentiment = sentiment;
-      }
-      
+  
       if (normalizedArticles.length === 0) {
         console.log(`No articles found for today's date for type "${newsType}"`);
         return;
@@ -150,7 +136,7 @@ export class MentionsService {
   
     cron.schedule('0 0 * * *', async () => {
       console.log('Starting daily scraping job...');
-      for (const [type, query] of Object.entries(this.typeIdMapping)) {
+      for (const [type, query] of Object.entries(this.newsTypes)) {
         try {
           await this.scrapeAndSaveLaTimes(type, query);
           console.log(`Completed scraping for type "${type}". Applying cooldown...`);
@@ -193,10 +179,9 @@ export class MentionsService {
 
   async fetchMentionsForCrypto(cryptoId) {
     const months = this.getLast12Months();
-    const [hnData, devtoData, stackData, laTimesData] = await Promise.allSettled([
+    const [hnData, devtoData, laTimesData] = await Promise.allSettled([
       this.fetchHackerNewsMentions(cryptoId, months),
       this.fetchDevToMentions(cryptoId, months),
-      this.fetchStackExchangeMentions(cryptoId, months),
       this.fetchLaTimesMentions(cryptoId, months)
     ]);
 
@@ -205,7 +190,6 @@ export class MentionsService {
       datasets: [
         { name: 'HackerNews', data: hnData.status === 'fulfilled' ? hnData.value : months.map(() => 0) },
         { name: 'Dev.to', data: devtoData.status === 'fulfilled' ? devtoData.value : months.map(() => 0) },
-        { name: 'StackExchange', data: stackData.status === 'fulfilled' ? stackData.value : months.map(() => 0) },
         { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) }
       ]
     };
@@ -280,34 +264,6 @@ export class MentionsService {
       return this.aggregateMonthlyMentions(response.data || [], months, article => new Date(article.published_at));
     } catch (error) {
       console.error('Error fetching Dev.to mentions:', error.message);
-      throw error;
-    }
-  }
-
-  async fetchStackExchangeMentions(cryptoId, months) {
-    try {
-      const response = await this.axiosInstance.get(API_ENDPOINTS.stackexchange + '/questions', {
-        params: {
-          tagged: cryptoId,
-          site: 'bitcoin',
-          pagesize: 100,
-          fromdate: Math.floor(months[0].getTime() / 1000),
-          order: 'desc',
-          sort: 'creation',
-          filter: 'total'
-        },
-        headers: {
-          'Accept-Encoding': 'gzip'
-        }
-      });
-
-      return this.aggregateMonthlyMentions(
-        response.data?.items || [], 
-        months, 
-        question => new Date(question.creation_date * 1000)
-      );
-    } catch (error) {
-      console.error('Error fetching StackExchange mentions:', error.message);
       throw error;
     }
   }

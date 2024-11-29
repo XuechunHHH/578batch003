@@ -1,13 +1,23 @@
 import React, { useState } from 'react';
-import { Activity, TrendingUp, BarChart3, Menu, X } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { Activity, TrendingUp, BarChart3, Star, Menu, X, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { logout } from '../services/authService';
 
 export const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, setUser } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    navigate('/login');
+  };
 
   return (
     <header className="bg-cyber-dark border-b border-cyber-blue/20 p-4 relative z-50">
@@ -33,6 +43,24 @@ export const Header = () => {
             text="Analytics" 
             active={location.pathname === '/analytics'} 
           />
+          {user?.id !== 'guest' && (
+            <NavItem 
+              to="/likes" 
+              icon={<Star className="w-4 h-4" />} 
+              text="Likes" 
+              active={location.pathname === '/likes'} 
+            />
+          )}
+          <div className="flex items-center space-x-4 ml-6 pl-6 border-l border-cyber-blue/20">
+            <span className="text-cyber-blue">{user?.username}</span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-gray-400 hover:text-cyber-blue transition-colors duration-200"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>{user?.id !== 'guest' ? 'Log out' : 'Sign in'}</span>
+            </button>
+          </div>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -70,6 +98,28 @@ export const Header = () => {
                 active={location.pathname === '/analytics'}
                 onClick={() => setIsMenuOpen(false)}
               />
+              {user?.id !== 'guest' && (
+                <MobileNavItem
+                  to="/likes"
+                  icon={<Star className="w-5 h-5" />}
+                  text="Likes"
+                  active={location.pathname === '/likes'}
+                  onClick={() => setIsMenuOpen(false)}
+                />
+              )}
+              <div className="pt-4 mt-4 border-t border-cyber-blue/20">
+                <div className="text-cyber-blue mb-2">{user?.username}</div>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                  }}
+                  className="flex items-center space-x-2 text-gray-400 hover:text-cyber-blue transition-colors duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </nav>
           </motion.div>
         )}

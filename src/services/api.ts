@@ -1,8 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://api-dot-ass2-test-2024.wl.r.appspot.com/api'
-  : 'http://localhost:5001/api';
+import { API_BASE_URL } from '../utils/constants';
 
 const RETRY_DELAY = 2000;
 const MAX_RETRIES = 3;
@@ -112,5 +109,18 @@ export const getMentionsData = async (id: string): Promise<MentionsData> => {
   } catch (error: any) {
     console.error('Error fetching mentions data:', error.message);
     throw new Error(error.data?.message || 'Failed to fetch mentions data. Please try again later.');
+  }
+};
+
+export const updateUserLikes = async (userId: string, likes: string[]): Promise<string[]> => {
+  try {
+    const response = await api.post(`/auth/likes/${userId}`, { likes });
+    if (!response.data) {
+      throw new Error('Invalid response format');
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating likes:', error.message);
+    throw new Error(error.data?.message || 'Failed to update likes. Please try again later.');
   }
 };

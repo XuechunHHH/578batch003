@@ -1,8 +1,10 @@
 import React, { memo } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { CryptoData } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { useLikes } from '../contexts/LikesContext';
 
 interface PriceCardProps {
   crypto: CryptoData;
@@ -20,16 +22,42 @@ const formatVolume = (volume: number): string => {
 
 const PriceCard = memo(({ crypto }: PriceCardProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { likes, toggleLike } = useLikes();
   const isPositive = crypto.price_change_percentage_24h > 0;
+  const isLiked = likes.includes(crypto.id);
+
+  const handleClick = (e: React.MouseEvent) => {
+    navigate(`/crypto/${crypto.id}`);
+  };
+
+  const handleLikeClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (user?.id === 'guest') return;
+    await toggleLike(crypto.id);
+  };
 
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={() => navigate(`/crypto/${crypto.id}`)}
-      className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20 hover:shadow-neon-blue transition-all duration-300 cursor-pointer"
+      onClick={handleClick}
+      className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20 hover:shadow-neon-blue transition-all duration-300 cursor-pointer relative"
     >
+      {user?.id !== 'guest' && (
+        <button
+          onClick={handleLikeClick}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-cyber-darker transition-colors duration-200"
+        >
+          <Star
+            className={`w-5 h-5 ${
+              isLiked ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'
+            }`}
+          />
+        </button>
+      )}
+
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center space-x-3">
           <img src={crypto.image} alt={crypto.name} className="w-8 h-8" />

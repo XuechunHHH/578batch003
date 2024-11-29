@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import NodeCache from 'node-cache';
 import { CryptoService } from './services/cryptoService.js';
 import { MentionsService } from './services/mentionsService.js';
+import { AuthService } from './services/authService.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
@@ -22,16 +23,49 @@ const cache = new NodeCache({
 
 const cryptoService = new CryptoService(cache);
 const mentionsService = new MentionsService(cache);
+const authService = new AuthService();
 
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
+// Auth routes
+app.post('/api/auth/login', async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    const user = await authService.login(username, password);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/auth/signup', async (req, res, next) => {
+  try {
+    const { username, password, email } = req.body;
+    const user = await authService.signup(username, password, email);
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Likes route
+app.post('/api/auth/likes/:userId', async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { likes } = req.body;
+    const updatedLikes = await authService.updateLikes(userId, likes);
+    res.json(updatedLikes);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Existing routes...
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes with better error handling
 app.get('/api/crypto', async (req, res, next) => {
   try {
     const data = await cryptoService.getCryptoData();
@@ -82,10 +116,8 @@ app.get('/api/crypto/:id/mentions', async (req, res, next) => {
   }
 });
 
-// Error handling middleware should be last
 app.use(errorHandler);
 
-// Start server
 app.listen(port, () => {
   console.log(`Backend server running on port ${port}`);
 });

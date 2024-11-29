@@ -7,7 +7,6 @@ import { getMentionsData, CryptoData, getCryptoData } from '../services/api';
 const COLORS = {
   HackerNews: '#FF6600',
   'Dev.to': '#3B49DF',
-  StackExchange: '#1E5397',
   LaTimes: '#FDB927',
 };
 
