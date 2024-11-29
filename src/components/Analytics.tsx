@@ -158,6 +158,7 @@ export const Analytics = () => {
         </div>
       </div>
       <div className="mb-8"></div>
+      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Sentiment Analysis</h2>
       <MediaPage />
     </div>
 
