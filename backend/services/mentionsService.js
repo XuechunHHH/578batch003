@@ -65,6 +65,65 @@ export class MentionsService {
     this.collectMentionsData();
   }
 
+  async scrapeAndSaveDevtos(type, query) {
+    try {
+      const response = await this.axiosInstance.get(API_ENDPOINTS.devto, {
+        params: {
+          tag: query,
+          per_page: 50
+        }
+      });
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDateString = yesterday.toISOString().split('T')[0];
+      const filteredArticles = response.data.filter((article) => {
+        const articleDate = article.published_at.split('T')[0];
+        return articleDate === yesterdayDateString;
+      });
+      const seenTitles = new Set();
+      const normalizedArticles = filteredArticles.map((article) => ({
+        title: article.title,
+        link: article.url,
+        time: article.published_at,
+        type: type,
+        ai_sentiment: 5,
+        source: 'devto'
+      })).filter((article) => {
+        if (!article.link || !article.title) {
+          return false;
+        }
+        if (seenTitles.has(article.title)) {
+          return false;
+        }
+        seenTitles.add(article.title);
+        return true;
+      });
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      for (let i = 0; i < normalizedArticles.length; i++) {
+        const article = normalizedArticles[i];
+        const prompt = `You are an expert in cryptocurrency. I will show you the latest news topic about a specific cryptocurrency, and you will only generate a number between 0-10 no more else, which count as the sentiment of this news to the cryptocurrency, 0 means completely negative and 10 means completely positive, and 5 means netural or irrelevant try to avoid 5, at least have some preference. Here is the news topic: ${article.title}`;
+        const result = await model.generateContent(prompt);
+        let sentiment = result.response.text();
+        console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
+        sentiment = isNaN(sentiment) ? 5 : sentiment;
+        article.ai_sentiment = sentiment;
+        await sleep(5000); // Wait for 5 seconds between requests
+      }
+      const { data, error } = await this.supabase
+        .from('news')
+        .upsert(normalizedArticles, { onConflict: 'title' });
+      if (error) {
+        throw new Error(`Failed to insert articles: ${error.message}`);
+      }
+      console.log(`Successfully saved ${normalizedArticles.length} articles for type "${type}"`);
+    } catch (error) {
+      console.error('Error fetching and storing Dev.to:', error.message);
+      throw error;
+    }
+  }
+
+
+
   async scrapeAndSaveHackerNews(type, query) {
     try {
       // Calculate the past 24-hour range
@@ -129,6 +188,7 @@ export class MentionsService {
   }
   
   async scrapeAndSaveLaTimes(type, query) {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const url = `https://www.latimes.com/search?q=${query}&s=1&p=1`;
     const newsType = type;
   
@@ -182,6 +242,7 @@ export class MentionsService {
         console.log(`Sentiment for article ${i + 1}: ${sentiment}`);
         sentiment = isNaN(sentiment) ? 5 : sentiment;
         article.ai_sentiment = sentiment;
+        await sleep(5000); 
       }
       
       if (normalizedArticles.length === 0) {
@@ -213,15 +274,22 @@ export class MentionsService {
       console.log('Starting daily scraping job...');
       for (const [type, query] of Object.entries(this.typeIdMapping)) {
         try {
-          await this.scrapeAndSaveLaTimes(type, query);
+          await this.scrapeAndSaveDevtos(type, query);
           console.log(`Completed scraping for type "${type}". Applying cooldown...`);
+          await delay(30000);
+        } catch (error) {
+          console.error(`Failed to scrape news for Devto type "${type}": ${error.message}`);
+        }
+        try {
+          await this.scrapeAndSaveLaTimes(type, query);
+          console.log(`Completed scraping for Latime type "${type}". Applying cooldown...`);
           await delay(30000);
         } catch (error) {
           console.error(`Failed to scrape news for type "${type}": ${error.message}`);
         }
         try {
           await this.scrapeAndSaveHackerNews(type, query);
-          console.log(`Completed scraping for type "${type}". Applying cooldown...`);
+          console.log(`Completed scraping for HakerNews type "${type}". Applying cooldown...`);
           await delay(30000);
         } catch (error) {
           console.error(`Failed to scrape news for type "${type}": ${error.message}`);

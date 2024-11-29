@@ -83,6 +83,7 @@ export const MediaPage = () => {
           >
             <option value="latimes">LA Times</option>
             <option value="hackernews">Hacker News</option>
+            <option value="devto">DevTo</option>
           </select>
 
           {/* Type Selection */}
