@@ -43,12 +43,6 @@ export const Header = () => {
             text="Analytics" 
             active={location.pathname === '/analytics'} 
           />
-          <NavItem
-            to="/media"
-            icon={<Star className="w-4 h-4" />}
-            text="News"
-            active={location.pathname === '/news'}
-          />
           {user?.id !== 'guest' && (
             <NavItem 
               to="/likes" 
