@@ -3,6 +3,7 @@ import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getMentionsData, CryptoData, getCryptoData } from '../services/api';
+import { MediaPage } from '../pages/MediaPage';
 
 const COLORS = {
   HackerNews: '#FF6600',
@@ -158,5 +159,9 @@ export const Analytics = () => {
           </div>
         </div>
       </div>
+      <div className="mb-8"></div>
+      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Sentiment Analysis</h2>
+      <MediaPage />
+    </div>
   );
 };

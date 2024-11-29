@@ -43,17 +43,6 @@ const AppRoutes = () => {
           </div>
         </ProtectedRoute>
       } />
-
-      <Route path="/media" element={
-        <ProtectedRoute>
-          <div className="min-h-screen bg-cyber-darker text-white font-cyber">
-            <Header />
-            <main className="py-8">
-              <MediaPage />
-            </main>
-          </div>
-        </ProtectedRoute>
-      } />
       
       <Route path="/analytics" element={
         <ProtectedRoute>
