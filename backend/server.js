@@ -6,6 +6,7 @@ import { CryptoService } from './services/cryptoService.js';
 import { MentionsService } from './services/mentionsService.js';
 import { AuthService } from './services/authService.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { SocialMediaService } from './services/socialMediaService.js';
 
 // Load environment variables
 dotenv.config();
@@ -24,6 +25,7 @@ const cache = new NodeCache({
 const cryptoService = new CryptoService(cache);
 const mentionsService = new MentionsService(cache);
 const authService = new AuthService();
+const socialMediaService = new SocialMediaService();
 
 app.use(cors());
 app.use(express.json());
@@ -110,6 +112,16 @@ app.get('/api/crypto/:id/mentions', async (req, res, next) => {
     if (!data) {
       throw new Error('No mentions data available');
     }
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/latimes', async (req, res, next) => {
+  const page = parseInt(req.query.page, 10) || 1; 
+  try {
+    const data = await socialMediaService.getLaTimesNewsFeed(page);
     res.json(data);
   } catch (error) {
     next(error);

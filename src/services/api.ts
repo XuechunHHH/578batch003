@@ -46,6 +46,16 @@ export interface CryptoData {
   market_cap: number;
 }
 
+export interface NewsData {
+  id: string;
+  title: string;
+  link: string;
+  type: string;
+  source: string;
+  ai_sentiment: string;
+  time: string;
+}
+
 export interface GlobalData {
   total_market_cap: { usd: number };
   total_volume: { usd: number };
@@ -124,3 +134,16 @@ export const updateUserLikes = async (userId: string, likes: string[]): Promise<
     throw new Error(error.data?.message || 'Failed to update likes. Please try again later.');
   }
 };
+
+export const getLaTimesData = async (page: number): Promise<NewsData[]> => {
+  try {
+    const response = await api.get(`/latimes?page=${page}`);
+    if (!response.data || !Array.isArray(response.data)) {
+      throw new Error('Invalid data format received from server');
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching LA Times data:', error.message);
+    throw new Error(error.data?.message || 'Failed to fetch news data. Please try again later.');
+  }
+}

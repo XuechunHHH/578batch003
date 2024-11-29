@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard';
 import { CryptoDetail } from './components/CryptoDetail';
 import { Analytics } from './components/Analytics';
 import { LikesPage } from './pages/LikesPage';
+import { MediaPage } from './pages/MediaPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
@@ -42,6 +43,17 @@ const AppRoutes = () => {
           </div>
         </ProtectedRoute>
       } />
+
+      <Route path="/media" element={
+        <ProtectedRoute>
+          <div className="min-h-screen bg-cyber-darker text-white font-cyber">
+            <Header />
+            <main className="py-8">
+              <MediaPage />
+            </main>
+          </div>
+        </ProtectedRoute>
+      } />
       
       <Route path="/analytics" element={
         <ProtectedRoute>
@@ -65,6 +77,9 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
     </Routes>
+
+
+
   );
 };
 
