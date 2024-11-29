@@ -8,7 +8,7 @@ const COLORS = {
   HackerNews: '#FF6600',
   'Dev.to': '#3B49DF',
   LaTimes: '#FDB927',
-  Reddit: '#9370DB'
+  Reddit: '#9370DB',
 };
 
 export const Analytics = () => {
