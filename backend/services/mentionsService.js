@@ -191,10 +191,11 @@ export class MentionsService {
 
   async fetchMentionsForCrypto(cryptoId) {
     const months = this.getLast12Months();
-    const [hnData, devtoData, laTimesData] = await Promise.allSettled([
+    const [hnData, devtoData, laTimesData, redditData] = await Promise.allSettled([
       this.fetchHackerNewsMentions(cryptoId, months),
       this.fetchDevToMentions(cryptoId, months),
-      this.fetchLaTimesMentions(cryptoId, months)
+      this.fetchLaTimesMentions(cryptoId, months),
+      this.fetchRedditMentions(cryptoId, months)
     ]);
 
     return {
@@ -202,7 +203,8 @@ export class MentionsService {
       datasets: [
         { name: 'HackerNews', data: hnData.status === 'fulfilled' ? hnData.value : months.map(() => 0) },
         { name: 'Dev.to', data: devtoData.status === 'fulfilled' ? devtoData.value : months.map(() => 0) },
-        { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) }
+        { name: 'LaTimes', data: laTimesData.status === 'fulfilled' ? laTimesData.value : months.map(() => 0) },
+        { name: 'Reddit', data: redditData.status === 'fulfilled' ? redditData.value : months.map(() => 0) }
       ]
     };
   }
@@ -276,6 +278,43 @@ export class MentionsService {
       return this.aggregateMonthlyMentions(response.data || [], months, article => new Date(article.published_at));
     } catch (error) {
       console.error('Error fetching Dev.to mentions:', error.message);
+      throw error;
+    }
+  }
+  async fetchRedditMentions(cryptoId, months) {
+    try {
+      // use my own mapping here
+      const anotherTypeIdMapping = {
+        bnb: 'BNB',
+        xrp: 'XRP',
+        usdc: 'USDC',
+        avalanche: 'Avalanche',
+        bitcoin: 'Bitcoin',
+        ethereum: 'Ethereum',
+        tether: 'Tether',
+        solana: 'Solana',
+        dogecoin: 'Dogecoin',
+        cardano: 'Cardano',
+      };
+      const dbType = anotherTypeIdMapping[cryptoId];
+      const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
+        const startTime = startOfMonth(monthDate).toISOString();
+        const endTime = endOfMonth(monthDate).toISOString();
+        const { data, error } = await this.supabase
+            .from('reddit')
+            .select('id')
+            .eq('type', dbType)
+            .gte('Created_UTC', startTime)
+            .lte('Created_UTC', endTime);
+        if (error) {
+          throw new Error(`Error querying Supabase: ${error.message}`);
+        }
+        // Return the number of mentions for this month
+        return data.length || 0;
+      }));
+      return monthlyMentions;
+    } catch (error) {
+      console.error('Error fetching Supabase mentions:', error.message);
       throw error;
     }
   }
