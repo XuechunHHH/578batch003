@@ -209,7 +209,7 @@ export const Analytics = () => {
       <div className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-white">Sentiment Analysis</h2>
-          <p className="text-gray-400 mt-1">News and Social Media Impact</p>
+          <p className="text-gray-400 mt-1">News and Social Media Insights</p>
         </div>
         <MediaPage />
       </div>
