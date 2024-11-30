@@ -3,12 +3,14 @@ import { Activity, TrendingUp, BarChart3, Star, Menu, X, LogOut } from 'lucide-r
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { useMarketNavigation } from '../contexts/MarketNavigationContext';
 import { logout } from '../services/authService';
 
 export const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, setUser } = useAuth();
+  const { lastVisitedPath } = useMarketNavigation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -18,6 +20,13 @@ export const Header = () => {
     setUser(null);
     navigate('/login');
   };
+
+  const handleMarketsClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(lastVisitedPath);
+  };
+
+  const isMarketsActive = location.pathname === '/' || location.pathname.startsWith('/crypto/');
 
   return (
     <header className="bg-cyber-dark border-b border-cyber-blue/20 p-4 relative z-50">
@@ -31,12 +40,16 @@ export const Header = () => {
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
-          <NavItem 
-            to="/" 
-            icon={<TrendingUp className="w-4 h-4" />} 
-            text="Markets" 
-            active={location.pathname === '/'} 
-          />
+          <a
+            href="#"
+            onClick={handleMarketsClick}
+            className={`flex items-center space-x-2 transition-colors duration-200 ${
+              isMarketsActive ? 'text-cyber-blue' : 'text-gray-400 hover:text-cyber-blue'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4" />
+            <span className="font-cyber">Markets</span>
+          </a>
           <NavItem 
             to="/analytics" 
             icon={<BarChart3 className="w-4 h-4" />} 
@@ -84,13 +97,22 @@ export const Header = () => {
             className="md:hidden absolute top-full left-0 right-0 bg-cyber-dark border-b border-cyber-blue/20"
           >
             <nav className="container mx-auto py-4 px-4 flex flex-col space-y-4">
-              <MobileNavItem
-                to="/"
-                icon={<TrendingUp className="w-5 h-5" />}
-                text="Markets"
-                active={location.pathname === '/'}
-                onClick={() => setIsMenuOpen(false)}
-              />
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsMenuOpen(false);
+                  navigate(lastVisitedPath);
+                }}
+                className={`flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 ${
+                  isMarketsActive 
+                    ? 'bg-cyber-blue/10 text-cyber-blue' 
+                    : 'text-gray-400 hover:bg-cyber-blue/5 hover:text-cyber-blue'
+                }`}
+              >
+                <TrendingUp className="w-5 h-5" />
+                <span className="font-cyber text-lg">Markets</span>
+              </a>
               <MobileNavItem
                 to="/analytics"
                 icon={<BarChart3 className="w-5 h-5" />}
@@ -102,7 +124,7 @@ export const Header = () => {
                 <MobileNavItem
                   to="/likes"
                   icon={<Star className="w-5 h-5" />}
-                  text="Likes"
+                  text="Portfolio"
                   active={location.pathname === '/likes'}
                   onClick={() => setIsMenuOpen(false)}
                 />
@@ -117,7 +139,7 @@ export const Header = () => {
                   className="flex items-center space-x-2 text-gray-400 hover:text-cyber-blue transition-colors duration-200"
                 >
                   <LogOut className="w-5 h-5" />
-                  <span>Logout</span>
+                  <span>{user?.id !== 'guest' ? 'Log out' : 'Sign in'}</span>
                 </button>
               </div>
             </nav>

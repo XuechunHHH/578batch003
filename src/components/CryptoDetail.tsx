@@ -25,6 +25,7 @@ import { getCryptoHistory, getCryptoDetails, CryptoData } from '../services/api'
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { useLikes } from '../contexts/LikesContext';
+import { useMarketNavigation } from '../contexts/MarketNavigationContext';
 
 interface ChartData {
   time: UTCTimestamp;
@@ -54,6 +55,7 @@ export const CryptoDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { likes, toggleLike } = useLikes();
+  const { setLastVisitedPath } = useMarketNavigation();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,12 @@ export const CryptoDetail = () => {
   const [showFullDescription, setShowFullDescription] = useState(false);
 
   const isLiked = id ? likes.includes(id) : false;
+
+  useEffect(() => {
+    if (id) {
+      setLastVisitedPath(`/crypto/${id}`);
+    }
+  }, [id, setLastVisitedPath]);
 
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -217,7 +225,6 @@ export const CryptoDetail = () => {
         </div>
       </div>
 
-      {/* Rest of the component remains unchanged */}
       {/* Crypto Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
