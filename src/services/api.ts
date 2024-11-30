@@ -44,6 +44,36 @@ export interface CryptoData {
   price_change_percentage_24h: number;
   total_volume: number;
   market_cap: number;
+  market_cap_rank: number;
+  fully_diluted_valuation: number;
+  total_supply: number;
+  max_supply: number;
+  circulating_supply: number;
+  ath: number;
+  ath_change_percentage: number;
+  ath_date: string;
+  atl: number;
+  atl_change_percentage: number;
+  atl_date: string;
+  roi: {
+    times: number;
+    currency: string;
+    percentage: number;
+  } | null;
+  last_updated: string;
+  description?: string;
+  categories?: string[];
+  links?: {
+    homepage: string[];
+    blockchain_site: string[];
+    official_forum_url: string[];
+    chat_url: string[];
+    announcement_url: string[];
+    twitter_screen_name: string;
+    facebook_username: string;
+    telegram_channel_identifier: string;
+    subreddit_url: string;
+  };
 }
 
 export interface NewsData {
@@ -80,6 +110,19 @@ export const getCryptoData = async (): Promise<CryptoData[]> => {
   } catch (error: any) {
     console.error('Error fetching crypto data:', error.message);
     throw new Error(error.data?.message || 'Failed to fetch cryptocurrency data. Please try again later.');
+  }
+};
+
+export const getCryptoDetails = async (id: string): Promise<CryptoData> => {
+  try {
+    const response = await api.get(`/crypto/${id}`);
+    if (!response.data) {
+      throw new Error('Invalid data format received from server');
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching crypto details:', error.message);
+    throw new Error(error.data?.message || 'Failed to fetch cryptocurrency details. Please try again later.');
   }
 };
 

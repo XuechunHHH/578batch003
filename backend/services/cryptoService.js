@@ -85,6 +85,88 @@ export class CryptoService {
     }
   }
 
+  async getCryptoDetails(id) {
+    const cacheKey = `crypto_details_${id}`;
+    const cachedData = this.cache.get(cacheKey);
+
+    if (cachedData) {
+      console.log('Returning cached crypto details');
+      return cachedData;
+    }
+
+    try {
+      const response = await this.axiosInstance.get(`/coins/${id}`, {
+        params: {
+          localization: false,
+          tickers: false,
+          market_data: true,
+          community_data: false,
+          developer_data: false,
+          sparkline: false
+        }
+      });
+
+      if (!response.data) {
+        throw new Error('Invalid response format from CoinGecko API');
+      }
+
+      const data = {
+        id: response.data.id,
+        symbol: response.data.symbol,
+        name: response.data.name,
+        image: response.data.image.large,
+        current_price: response.data.market_data.current_price.usd,
+        market_cap: response.data.market_data.market_cap.usd,
+        market_cap_rank: response.data.market_cap_rank,
+        fully_diluted_valuation: response.data.market_data.fully_diluted_valuation?.usd,
+        total_volume: response.data.market_data.total_volume.usd,
+        price_change_percentage_24h: response.data.market_data.price_change_percentage_24h,
+        circulating_supply: response.data.market_data.circulating_supply,
+        total_supply: response.data.market_data.total_supply,
+        max_supply: response.data.market_data.max_supply,
+        ath: response.data.market_data.ath.usd,
+        ath_change_percentage: response.data.market_data.ath_change_percentage.usd,
+        ath_date: response.data.market_data.ath_date.usd,
+        atl: response.data.market_data.atl.usd,
+        atl_change_percentage: response.data.market_data.atl_change_percentage.usd,
+        atl_date: response.data.market_data.atl_date.usd,
+        roi: response.data.market_data.roi,
+        last_updated: response.data.last_updated,
+        description: response.data.description?.en,
+        categories: response.data.categories,
+        links: {
+          homepage: response.data.links.homepage,
+          blockchain_site: response.data.links.blockchain_site,
+          official_forum_url: response.data.links.official_forum_url,
+          chat_url: response.data.links.chat_url,
+          announcement_url: response.data.links.announcement_url,
+          twitter_screen_name: response.data.links.twitter_screen_name,
+          facebook_username: response.data.links.facebook_username,
+          telegram_channel_identifier: response.data.links.telegram_channel_identifier,
+          subreddit_url: response.data.links.subreddit_url
+        }
+      };
+
+      this.cache.set(cacheKey, data, CACHE_TTL);
+      console.log('Fetched fresh crypto details from CoinGecko');
+      return data;
+    } catch (error) {
+      console.error('Error fetching crypto details:', error.message);
+      
+      // Return cached data if available, even if expired
+      const staleData = this.cache.get(cacheKey, true);
+      if (staleData) {
+        console.log('Returning stale crypto details due to API error');
+        return staleData;
+      }
+
+      if (error.response?.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      throw new Error('Failed to fetch cryptocurrency details');
+    }
+  }
+
   async getGlobalData() {
     const cacheKey = 'global_data';
     const cachedData = this.cache.get(cacheKey);

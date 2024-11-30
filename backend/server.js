@@ -80,6 +80,19 @@ app.get('/api/crypto', async (req, res, next) => {
   }
 });
 
+app.get('/api/crypto/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = await cryptoService.getCryptoDetails(id);
+    if (!data) {
+      throw new Error('No cryptocurrency details available');
+    }
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get('/api/global', async (req, res, next) => {
   try {
     const data = await cryptoService.getGlobalData();
