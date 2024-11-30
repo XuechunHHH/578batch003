@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LikesProvider } from './contexts/LikesContext';
+import { MarketNavigationProvider } from './contexts/MarketNavigationContext';
 import { LoginPage } from './pages/LoginPage';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -66,9 +67,6 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
     </Routes>
-
-
-
   );
 };
 
@@ -77,7 +75,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <LikesProvider>
-          <AppRoutes />
+          <MarketNavigationProvider>
+            <AppRoutes />
+          </MarketNavigationProvider>
         </LikesProvider>
       </AuthProvider>
     </BrowserRouter>

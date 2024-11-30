@@ -1,16 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMarketNavigation } from '../contexts/MarketNavigationContext';
 import { getCryptoData, getGlobalData, CryptoData, GlobalData } from '../services/api';
 import PriceCard from './PriceCard';
 import StatsCard from './StatsCard';
 
 export const Dashboard = () => {
+  const { setLastVisitedPath } = useMarketNavigation();
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
   const [globalData, setGlobalData] = useState<GlobalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    setLastVisitedPath('/');
+  }, [setLastVisitedPath]);
 
   const fetchData = useCallback(async () => {
     try {
