@@ -11,12 +11,14 @@ export const MediaPage = () => {
   const [page, setPage] = useState(1);
   const [source, setSource] = useState('hackernews');
   const [type, setType] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
 
-  const fetchNews = async () => {
+  const fetchNews = async (pageNum: number) => {
     try {
       setLoading(true);
-      const data = await getNewsData(page, source, type);
+      const data = await getNewsData(pageNum, source, type);
       setNews(data);
+      setHasMore(data.length === 9); // 9 is our page size
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch news');
@@ -27,43 +29,32 @@ export const MediaPage = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const data = await getNewsData(page, source, type);
-        if (!controller.signal.aborted) {
-          setNews(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Failed to fetch news');
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchData();
-
+    fetchNews(page);
     return () => controller.abort();
   }, [page, source, type]);
 
   const handleSourceChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSource(event.target.value);
     setPage(1);
+    setHasMore(true);
   };
 
   const handleTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setType(event.target.value);
     setPage(1);
+    setHasMore(true);
   };
 
-  const handlePreviousPage = () => setPage((prev) => Math.max(prev - 1, 1));
-  const handleNextPage = () => setPage((prev) => prev + 1);
+  const handlePreviousPage = () => {
+    setPage((prev) => Math.max(prev - 1, 1));
+    setHasMore(true);
+  };
+
+  const handleNextPage = () => {
+    if (hasMore) {
+      setPage((prev) => prev + 1);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -113,7 +104,7 @@ export const MediaPage = () => {
           </button>
           <button
             onClick={handleNextPage}
-            disabled={loading}
+            disabled={loading || !hasMore}
             className="px-6 py-2 bg-cyber-darker text-cyber-blue border border-cyber-blue/20 rounded-lg hover:shadow-neon-blue transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
@@ -140,7 +131,7 @@ export const MediaPage = () => {
           <div className="bg-cyber-dark rounded-lg p-6 border border-red-500/20">
             <p className="text-red-500 text-center">{error}</p>
           </div>
-        ) : news.length === 0 ? (
+        ) : news.length === 0 || !hasMore ? (
           <div className="text-center py-8">
             <p className="text-gray-400">No news articles found.</p>
           </div>
