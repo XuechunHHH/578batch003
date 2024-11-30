@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity } from 'lucide-react';
+import { Activity, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getMentionsData, CryptoData, getCryptoData } from '../services/api';
@@ -10,6 +10,25 @@ const COLORS = {
   'Dev.to': '#3B49DF',
   LaTimes: '#FDB927',
   Reddit: '#9370DB',
+};
+
+const SOURCE_INFO = {
+  HackerNews: {
+    description: 'A tech-focused news aggregator where cryptocurrency discussions often reflect market sentiment and technological developments.',
+    url: 'https://news.ycombinator.com'
+  },
+  'Dev.to': {
+    description: 'A community platform for developers where blockchain and cryptocurrency topics are discussed from a technical perspective.',
+    url: 'https://dev.to'
+  },
+  LaTimes: {
+    description: 'A major news outlet providing mainstream coverage of cryptocurrency trends and their impact on traditional markets.',
+    url: 'https://www.latimes.com'
+  },
+  Reddit: {
+    description: 'A social platform with dedicated cryptocurrency communities offering real-time discussions and market analysis.',
+    url: 'https://www.reddit.com'
+  }
 };
 
 export const Analytics = () => {
@@ -62,40 +81,44 @@ export const Analytics = () => {
 
   if (loading) {
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center justify-center space-x-2 text-cyber-blue"
-          >
-            <Activity className="w-6 h-6 animate-spin" />
-            <span>Loading analytics data...</span>
-          </motion.div>
-        </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center space-x-2 text-cyber-blue"
+        >
+          <Activity className="w-6 h-6 animate-spin" />
+          <span>Loading analytics data...</span>
+        </motion.div>
+      </div>
     );
   }
 
   if (error) {
     return (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-cyber-dark rounded-lg p-6 border border-red-500/20">
-            <p className="text-red-500 text-center">{error}</p>
-            <button
-                onClick={() => window.location.reload()}
-                className="mt-4 mx-auto block px-4 py-2 bg-cyber-darker text-cyber-blue border border-cyber-blue/20 rounded-lg hover:shadow-neon-blue transition-all duration-300"
-            >
-              Retry
-            </button>
-          </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-cyber-dark rounded-lg p-6 border border-red-500/20">
+          <p className="text-red-500 text-center">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 mx-auto block px-4 py-2 bg-cyber-darker text-cyber-blue border border-cyber-blue/20 rounded-lg hover:shadow-neon-blue transition-all duration-300"
+          >
+            Retry
+          </button>
         </div>
+      </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="bg-cyber-dark rounded-lg p-4 sm:p-6 border border-cyber-blue/20 mb-8">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white">Mentions Analysis</h2>
+          <p className="text-gray-400 mt-1">Last 12 Months</p>
+        </div>
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Mentions Analysis (Last 12 Months)</h2>
           <select
             value={selectedCrypto}
             onChange={(e) => setSelectedCrypto(e.target.value)}
@@ -157,11 +180,39 @@ export const Analytics = () => {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+          {Object.entries(SOURCE_INFO).map(([source, info]) => (
+            <div
+              key={source}
+              className="bg-cyber-darker p-4 rounded-lg border border-cyber-blue/10"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold" style={{ color: COLORS[source as keyof typeof COLORS] }}>
+                  {source}
+                </h3>
+                <a
+                  href={info.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-cyber-blue hover:text-white transition-colors duration-200"
+                >
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </a>
+              </div>
+              <p className="text-gray-400 text-sm">{info.description}</p>
+            </div>
+          ))}
+        </div>
       </div>
-  
-      <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Sentiment Analysis</h2>
-      <MediaPage />
+
+      <div className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white">Sentiment Analysis</h2>
+          <p className="text-gray-400 mt-1">News and Social Media Impact</p>
+        </div>
+        <MediaPage />
+      </div>
     </div>
   );
-  
 };
