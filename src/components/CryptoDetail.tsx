@@ -17,11 +17,14 @@ import {
   Book,
   Code,
   Link as LinkIcon,
-  Info
+  Info,
+  Star
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getCryptoHistory, getCryptoDetails, CryptoData } from '../services/api';
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
+import { useAuth } from '../contexts/AuthContext';
+import { useLikes } from '../contexts/LikesContext';
 
 interface ChartData {
   time: UTCTimestamp;
@@ -49,12 +52,22 @@ const ExternalLink2 = ({ href, icon, children }: { href: string; icon: React.Rea
 
 export const CryptoDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const { likes, toggleLike } = useLikes();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [cryptoDetails, setCryptoDetails] = useState<CryptoData | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
+
+  const isLiked = id ? likes.includes(id) : false;
+
+  const handleLikeClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!id || user?.id === 'guest') return;
+    await toggleLike(id);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -163,7 +176,23 @@ export const CryptoDetail = () => {
           <span>Back to Dashboard</span>
         </Link>
 
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-4">
+          {user?.id !== 'guest' && (
+            <button
+              onClick={handleLikeClick}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-cyber-dark border border-cyber-blue/20 hover:shadow-neon-blue transition-all duration-300"
+            >
+              <Star
+                className={`w-5 h-5 ${
+                  isLiked ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'
+                }`}
+              />
+              <span className={isLiked ? 'text-yellow-400' : 'text-gray-400'}>
+                Add to Portfolio
+              </span>
+            </button>
+          )}
+
           {cryptoDetails.links?.homepage[0] && (
             <a
               href={cryptoDetails.links.homepage[0]}
@@ -188,6 +217,7 @@ export const CryptoDetail = () => {
         </div>
       </div>
 
+      {/* Rest of the component remains unchanged */}
       {/* Crypto Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
@@ -368,7 +398,6 @@ export const CryptoDetail = () => {
             )}
           </div>
         </InfoCard>
-
       </div>
     </div>
   );

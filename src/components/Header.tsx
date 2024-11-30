@@ -40,14 +40,14 @@ export const Header = () => {
           <NavItem 
             to="/analytics" 
             icon={<BarChart3 className="w-4 h-4" />} 
-            text="Analytics" 
+            text="Media Analytics" 
             active={location.pathname === '/analytics'} 
           />
           {user?.id !== 'guest' && (
             <NavItem 
               to="/likes" 
               icon={<Star className="w-4 h-4" />} 
-              text="Likes" 
+              text="Portfolio" 
               active={location.pathname === '/likes'} 
             />
           )}
