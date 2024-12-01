@@ -43,7 +43,7 @@ export class CryptoService {
     const cacheKey = 'crypto_data';
     const cachedData = this.cache.get(cacheKey);
 
-    if (cachedData) {
+    if (cachedData && (this.cache.getTtl(cacheKey)>Date.now())) {
       console.log('Returning cached crypto data');
       return cachedData;
     }
@@ -72,7 +72,7 @@ export class CryptoService {
       console.error('Error fetching crypto data:', error.message);
       
       // Return cached data if available, even if expired
-      const staleData = this.cache.get(cacheKey, true);
+      const staleData = this.cache.get(cacheKey);
       if (staleData) {
         console.log('Returning stale crypto data due to API error');
         return staleData;
@@ -89,7 +89,7 @@ export class CryptoService {
     const cacheKey = `crypto_details_${id}`;
     const cachedData = this.cache.get(cacheKey);
 
-    if (cachedData) {
+    if (cachedData && (this.cache.getTtl(cacheKey)>Date.now())) {
       console.log('Returning cached crypto details');
       return cachedData;
     }
@@ -154,7 +154,7 @@ export class CryptoService {
       console.error('Error fetching crypto details:', error.message);
       
       // Return cached data if available, even if expired
-      const staleData = this.cache.get(cacheKey, true);
+      const staleData = this.cache.get(cacheKey);
       if (staleData) {
         console.log('Returning stale crypto details due to API error');
         return staleData;
@@ -171,7 +171,7 @@ export class CryptoService {
     const cacheKey = 'global_data';
     const cachedData = this.cache.get(cacheKey);
 
-    if (cachedData) {
+    if (cachedData && (this.cache.getTtl(cacheKey)>Date.now())) {
       console.log('Returning cached global data');
       return cachedData;
     }
@@ -191,7 +191,7 @@ export class CryptoService {
       console.error('Error fetching global data:', error.message);
       
       // Return cached data if available, even if expired
-      const staleData = this.cache.get(cacheKey, true);
+      const staleData = this.cache.get(cacheKey);
       if (staleData) {
         console.log('Returning stale global data due to API error');
         return staleData;
@@ -208,7 +208,7 @@ export class CryptoService {
     const cacheKey = `history_${id}`;
     const cachedData = this.cache.get(cacheKey);
 
-    if (cachedData) {
+    if (cachedData && (this.cache.getTtl(cacheKey)>Date.now())) {
       console.log('Returning cached historical data');
       return cachedData;
     }
@@ -238,7 +238,7 @@ export class CryptoService {
       console.error('Error fetching historical data:', error.message);
       
       // Return cached data if available, even if expired
-      const staleData = this.cache.get(cacheKey, true);
+      const staleData = this.cache.get(cacheKey);
       if (staleData) {
         console.log('Returning stale historical data due to API error');
         return staleData;
