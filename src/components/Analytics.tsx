@@ -26,7 +26,9 @@ const SOURCE_INFO = {
     url: 'https://www.latimes.com'
   },
   Reddit: {
-    description: 'A social platform with dedicated cryptocurrency communities offering real-time discussions and market analysis.',
+    description: 'A social platform with dedicated cryptocurrency communities offering real-time discussions and market analysis. ' +
+        'Live Reddit data from Reddit API, ' +
+        'Historical Reddit data from Redarcs (the-eye.eu/redarcs) and RaiderDev (academictorrents.com/browse.php?search=RaiderBDev).',
     url: 'https://www.reddit.com'
   }
 };
