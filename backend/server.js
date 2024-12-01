@@ -19,7 +19,7 @@ const cache = new NodeCache({
   stdTTL: 120,
   checkperiod: 60,
   useClones: false,
-  deleteOnExpire: false
+  deleteOnExpire: true
 });
 
 const cryptoService = new CryptoService(cache);
