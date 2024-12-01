@@ -424,10 +424,10 @@ export class MentionsService {
     try {
       // use my own mapping here
       const anotherTypeIdMapping = {
-        bnb: 'BNB',
-        xrp: 'XRP',
-        usdc: 'USDC',
-        avalanche: 'Avalanche',
+        binancecoin: 'BNB',
+        ripple: 'XRP',
+        'usd-coin': 'USDC',
+        'avalanche-2': 'Avalanche',
         bitcoin: 'Bitcoin',
         ethereum: 'Ethereum',
         tether: 'Tether',
@@ -439,17 +439,30 @@ export class MentionsService {
       const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
         const startTime = startOfMonth(monthDate).toISOString();
         const endTime = endOfMonth(monthDate).toISOString();
+        // newer data (after Oct)
         const { data, error } = await this.supabase
             .from('reddit')
-            .select('id')
+            .select('count', { count: 'exact' })  // Request count directly
             .eq('type', dbType)
             .gte('Created_UTC', startTime)
             .lte('Created_UTC', endTime);
         if (error) {
-          throw new Error(`Error querying Supabase: ${error.message}`);
+          throw new Error(`Error querying Supabase reddit: ${error.message}`);
         }
-        // Return the number of mentions for this month
-        return data.length || 0;
+        const count = data.length > 0 ? data[0].count : 0; // Default to 0 if no rows
+        // older data (before Oct)
+        const { data:data2, error:error2 } = await this.supabase
+            .from('olderreddit')
+            .select('count', { count: 'exact' })  // Request count directly
+            .eq('type', dbType)
+            .gte('Created_UTC', startTime)
+            .lte('Created_UTC', endTime);
+        const count2 = data2.length > 0 ? data2[0].count : 0; // Default to 0 if no rows
+        if (error2) {
+          throw new Error(`Error querying Supabase olderreddit: ${error2.message}`);
+        }
+        // merge two data sources
+        return (count + count2) || 0;
       }));
       return monthlyMentions;
     } catch (error) {
