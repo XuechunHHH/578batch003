@@ -4,7 +4,7 @@ import { cache } from '../utils/cache';
 
 const RETRY_DELAY = 1000;
 const MAX_RETRIES = 3;
-const REQUEST_TIMEOUT = 1000; // 1 seconds timeout
+const REQUEST_TIMEOUT = 500; // 0.5 seconds timeout
 
 // Configure axios defaults
 const api = axios.create({
