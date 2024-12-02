@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const CYRPTO_CACHE_TTL = 120; // 2 minutes
-const DETAILS_CACHE_TTL = 21600; // 6 hours
+const DETAILS_CACHE_TTL = 10800; // 3 hours
 const RETRY_DELAY = 1000; // 1 second
 const MAX_RETRIES = 3;
 
@@ -38,6 +38,124 @@ export class CryptoService {
 
       return Promise.reject(error);
     });
+
+    // Initialize cache expiration listeners
+    this.initializeCacheListeners();
+  }
+
+  initializeCacheListeners() {
+    // Listen for cache expiration events
+    this.cache.on('expired', async (key, value) => {
+      if (key.startsWith('crypto_details_') || key.startsWith('history_')) {
+        const id = key.split('_').pop();
+        const randomDelay = Math.floor(Math.random() * 600000); // Random delay between 0-10 minutes
+
+        console.log(`Cache expired for ${key}. Scheduling refresh in ${randomDelay/1000} seconds`);
+
+        setTimeout(async () => {
+          try {
+            if (key.startsWith('crypto_details_')) {
+              await this.refreshCryptoDetails(id);
+            } else if (key.startsWith('history_')) {
+              await this.refreshCryptoHistory(id);
+            }
+          } catch (error) {
+            console.error(`Error refreshing cache for ${key}:`, error.message);
+          }
+        }, randomDelay);
+      }
+    });
+  }
+
+  async refreshCryptoDetails(id) {
+    try {
+      console.log(`Refreshing crypto details for ${id}`);
+      const response = await this.axiosInstance.get(`/coins/${id}`, {
+        params: {
+          localization: false,
+          tickers: false,
+          market_data: true,
+          community_data: false,
+          developer_data: false,
+          sparkline: false
+        }
+      });
+
+      if (!response.data) {
+        throw new Error('Invalid response format from CoinGecko API');
+      }
+
+      const data = {
+        id: response.data.id,
+        symbol: response.data.symbol,
+        name: response.data.name,
+        image: response.data.image.large,
+        current_price: response.data.market_data.current_price.usd,
+        market_cap: response.data.market_data.market_cap.usd,
+        market_cap_rank: response.data.market_cap_rank,
+        fully_diluted_valuation: response.data.market_data.fully_diluted_valuation?.usd,
+        total_volume: response.data.market_data.total_volume.usd,
+        price_change_percentage_24h: response.data.market_data.price_change_percentage_24h,
+        circulating_supply: response.data.market_data.circulating_supply,
+        total_supply: response.data.market_data.total_supply,
+        max_supply: response.data.market_data.max_supply,
+        ath: response.data.market_data.ath.usd,
+        ath_change_percentage: response.data.market_data.ath_change_percentage.usd,
+        ath_date: response.data.market_data.ath_date.usd,
+        atl: response.data.market_data.atl.usd,
+        atl_change_percentage: response.data.market_data.atl_change_percentage.usd,
+        atl_date: response.data.market_data.atl_date.usd,
+        roi: response.data.market_data.roi,
+        last_updated: response.data.last_updated,
+        description: response.data.description?.en,
+        categories: response.data.categories,
+        links: {
+          homepage: response.data.links.homepage,
+          blockchain_site: response.data.links.blockchain_site,
+          official_forum_url: response.data.links.official_forum_url,
+          chat_url: response.data.links.chat_url,
+          announcement_url: response.data.links.announcement_url,
+          twitter_screen_name: response.data.links.twitter_screen_name,
+          facebook_username: response.data.links.facebook_username,
+          telegram_channel_identifier: response.data.links.telegram_channel_identifier,
+          subreddit_url: response.data.links.subreddit_url
+        }
+      };
+
+      this.cache.set(`crypto_details_${id}`, data, DETAILS_CACHE_TTL);
+      console.log(`Successfully refreshed crypto details for ${id}`);
+    } catch (error) {
+      console.error(`Failed to refresh crypto details for ${id}:`, error.message);
+      throw error;
+    }
+  }
+
+  async refreshCryptoHistory(id) {
+    try {
+      console.log(`Refreshing crypto history for ${id}`);
+      const response = await this.axiosInstance.get(`/coins/${id}/market_chart`, {
+        params: {
+          vs_currency: 'usd',
+          days: '30',
+          interval: 'daily'
+        }
+      });
+
+      if (!response.data?.prices || !Array.isArray(response.data.prices)) {
+        throw new Error('Invalid response format from CoinGecko API');
+      }
+
+      const prices = response.data.prices.map(([timestamp, price]) => ({
+        time: timestamp / 1000,
+        value: price
+      }));
+
+      this.cache.set(`history_${id}`, prices, DETAILS_CACHE_TTL);
+      console.log(`Successfully refreshed crypto history for ${id}`);
+    } catch (error) {
+      console.error(`Failed to refresh crypto history for ${id}:`, error.message);
+      throw error;
+    }
   }
 
   async getCryptoData() {
