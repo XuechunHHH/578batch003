@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LikesProvider } from './contexts/LikesContext';
 import { MarketNavigationProvider } from './contexts/MarketNavigationContext';
+import { CryptoDataProvider } from './contexts/CryptoDataContext';
 import { LoginPage } from './pages/LoginPage';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -76,7 +77,9 @@ function App() {
       <AuthProvider>
         <LikesProvider>
           <MarketNavigationProvider>
-            <AppRoutes />
+            <CryptoDataProvider>
+              <AppRoutes />
+            </CryptoDataProvider>
           </MarketNavigationProvider>
         </LikesProvider>
       </AuthProvider>

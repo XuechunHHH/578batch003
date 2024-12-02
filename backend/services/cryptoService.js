@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
-const CACHE_TTL = 120; // 120 seconds
+const CYRPTO_CACHE_TTL = 120; // 2 minutes
+const DETAILS_CACHE_TTL = 21600; // 6 hours
 const RETRY_DELAY = 1000; // 1 second
 const MAX_RETRIES = 3;
 
@@ -65,7 +66,7 @@ export class CryptoService {
       }
 
       const data = response.data;
-      this.cache.set(cacheKey, data, CACHE_TTL);
+      this.cache.set(cacheKey, data, CYRPTO_CACHE_TTL);
       console.log('Fetched fresh crypto data from CoinGecko');
       return data;
     } catch (error) {
@@ -147,7 +148,7 @@ export class CryptoService {
         }
       };
 
-      this.cache.set(cacheKey, data, CACHE_TTL);
+      this.cache.set(cacheKey, data, DETAILS_CACHE_TTL);
       console.log('Fetched fresh crypto details from CoinGecko');
       return data;
     } catch (error) {
@@ -184,7 +185,7 @@ export class CryptoService {
       }
 
       const data = response.data.data;
-      this.cache.set(cacheKey, data, CACHE_TTL);
+      this.cache.set(cacheKey, data, CYRPTO_CACHE_TTL);
       console.log('Fetched fresh global data from CoinGecko');
       return data;
     } catch (error) {
@@ -231,7 +232,7 @@ export class CryptoService {
         value: price
       }));
 
-      this.cache.set(cacheKey, prices, CACHE_TTL);
+      this.cache.set(cacheKey, prices, DETAILS_CACHE_TTL);
       console.log('Fetched fresh historical data from CoinGecko');
       return prices;
     } catch (error) {

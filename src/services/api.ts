@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
+import { cache } from '../utils/cache';
 
-const RETRY_DELAY = 2000;
+const RETRY_DELAY = 1000;
 const MAX_RETRIES = 3;
+const REQUEST_TIMEOUT = 1000; // 1 seconds timeout
 
 // Configure axios defaults
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: REQUEST_TIMEOUT,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -100,69 +102,116 @@ export interface MentionsData {
   }[];
 }
 
-export const getCryptoData = async (): Promise<CryptoData[]> => {
+const fetchWithCache = async <T>(
+  key: string,
+  fetchFn: () => Promise<T>
+): Promise<T> => {
   try {
-    const response = await api.get('/crypto');
-    if (!response.data || !Array.isArray(response.data)) {
-      throw new Error('Invalid data format received from server');
+    // Try to get data from cache first
+    const cachedData = cache.get<T>(key);
+    
+    // Start the fetch regardless of cache status
+    const fetchPromise = fetchFn().then(data => {
+      // Update cache with new data
+      cache.set(key, data);
+      return data;
+    });
+
+    // If we have cached data, use it while waiting for fresh data
+    if (cachedData) {
+      return Promise.race([
+        fetchPromise,
+        new Promise<T>((resolve) => {
+          setTimeout(() => resolve(cachedData), REQUEST_TIMEOUT);
+        })
+      ]);
     }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching crypto data:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch cryptocurrency data. Please try again later.');
+
+    // If no cache, wait for the fetch
+    return fetchPromise;
+  } catch (error) {
+    // If we have cached data and there's an error, return cached data
+    const cachedData = cache.get<T>(key);
+    if (cachedData) {
+      return cachedData;
+    }
+    throw error;
   }
+};
+
+export const getCryptoData = async (): Promise<CryptoData[]> => {
+  return fetchWithCache('crypto_data', async () => {
+    try {
+      const response = await api.get('/crypto');
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching crypto data:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch cryptocurrency data. Please try again later.');
+    }
+  });
 };
 
 export const getCryptoDetails = async (id: string): Promise<CryptoData> => {
-  try {
-    const response = await api.get(`/crypto/${id}`);
-    if (!response.data) {
-      throw new Error('Invalid data format received from server');
+  return fetchWithCache(`crypto_details_${id}`, async () => {
+    try {
+      const response = await api.get(`/crypto/${id}`);
+      if (!response.data) {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching crypto details:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch cryptocurrency details. Please try again later.');
     }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching crypto details:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch cryptocurrency details. Please try again later.');
-  }
+  });
 };
 
 export const getGlobalData = async (): Promise<GlobalData> => {
-  try {
-    const response = await api.get('/global');
-    if (!response.data || typeof response.data !== 'object') {
-      throw new Error('Invalid data format received from server');
+  return fetchWithCache('global_data', async () => {
+    try {
+      const response = await api.get('/global');
+      if (!response.data || typeof response.data !== 'object') {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching global data:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch global market data. Please try again later.');
     }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching global data:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch global market data. Please try again later.');
-  }
+  });
 };
 
 export const getCryptoHistory = async (id: string) => {
-  try {
-    const response = await api.get(`/crypto/${id}/history`);
-    if (!response.data || !Array.isArray(response.data)) {
-      throw new Error('Invalid data format received from server');
+  return fetchWithCache(`crypto_history_${id}`, async () => {
+    try {
+      const response = await api.get(`/crypto/${id}/history`);
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching history data:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch historical data. Please try again later.');
     }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching history data:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch historical data. Please try again later.');
-  }
+  });
 };
 
 export const getMentionsData = async (id: string): Promise<MentionsData> => {
-  try {
-    const response = await api.get(`/crypto/${id}/mentions`);
-    if (!response.data || !response.data.dates || !response.data.datasets) {
-      throw new Error('Invalid data format received from server');
+  return fetchWithCache(`mentions_data_${id}`, async () => {
+    try {
+      const response = await api.get(`/crypto/${id}/mentions`);
+      if (!response.data || !response.data.dates || !response.data.datasets) {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching mentions data:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch mentions data. Please try again later.');
     }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching mentions data:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch mentions data. Please try again later.');
-  }
+  });
 };
 
 export const updateUserLikes = async (userId: string, likes: string[]): Promise<string[]> => {
@@ -178,19 +227,21 @@ export const updateUserLikes = async (userId: string, likes: string[]): Promise<
   }
 };
 
-export const getNewsData = async (page: number, source: String, type:String | null): Promise<NewsData[]> => {
-  try {
-    let url = `/news?page=${page}&source=${source}`;
-    if (type) {
-      url += `&type=${type}`;
+export const getNewsData = async (page: number, source: String, type: String | null): Promise<NewsData[]> => {
+  return fetchWithCache(`news_data_${source}_${type}_${page}`, async () => {
+    try {
+      let url = `/news?page=${page}&source=${source}`;
+      if (type) {
+        url += `&type=${type}`;
+      }
+      const response = await api.get(url);
+      if (!response.data || !Array.isArray(response.data)) {
+        throw new Error('Invalid data format received from server');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching news data:', error.message);
+      throw new Error(error.data?.message || 'Failed to fetch news data. Please try again later.');
     }
-    const response = await api.get(url);
-    if (!response.data || !Array.isArray(response.data)) {
-      throw new Error('Invalid data format received from server');
-    }
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching LA Times data:', error.message);
-    throw new Error(error.data?.message || 'Failed to fetch news data. Please try again later.');
-  }
-}
+  });
+};

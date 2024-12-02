@@ -2,13 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMarketNavigation } from '../contexts/MarketNavigationContext';
-import { getCryptoData, getGlobalData, CryptoData, GlobalData } from '../services/api';
+import { useCryptoData } from '../contexts/CryptoDataContext';
+import { getCryptoData, getGlobalData, GlobalData } from '../services/api';
 import PriceCard from './PriceCard';
 import StatsCard from './StatsCard';
 
 export const Dashboard = () => {
   const { setLastVisitedPath } = useMarketNavigation();
-  const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
+  const { cryptoList, setCryptoList } = useCryptoData();
   const [globalData, setGlobalData] = useState<GlobalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export const Dashboard = () => {
         getCryptoData(),
         getGlobalData()
       ]);
-      setCryptoData(cryptoResponse);
+      setCryptoList(cryptoResponse);
       setGlobalData(globalResponse);
       setRetryCount(0); // Reset retry count on successful fetch
     } catch (error) {
@@ -39,7 +40,7 @@ export const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [retryCount]);
+  }, [retryCount, setCryptoList]);
 
   useEffect(() => {
     fetchData();
@@ -85,7 +86,7 @@ export const Dashboard = () => {
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {cryptoData.map((crypto) => (
+        {cryptoList.map((crypto) => (
           <PriceCard key={crypto.id} crypto={crypto} />
         ))}
         {globalData && <StatsCard globalData={globalData} />}

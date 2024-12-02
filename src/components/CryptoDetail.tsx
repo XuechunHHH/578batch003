@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { createChart, ColorType, UTCTimestamp } from 'lightweight-charts';
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
@@ -12,20 +12,15 @@ import {
   Twitter, 
   Facebook, 
   MessageCircle,
-  FileText,
-  Github,
-  Book,
-  Code,
-  Link as LinkIcon,
-  Info,
   Star
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { getCryptoHistory, getCryptoDetails, CryptoData } from '../services/api';
+import { getCryptoHistory, getCryptoDetails } from '../services/api';
 import { formatCurrency, formatNumber, formatPercentage } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { useLikes } from '../contexts/LikesContext';
 import { useMarketNavigation } from '../contexts/MarketNavigationContext';
+import { useCryptoData } from '../contexts/CryptoDataContext';
 
 interface ChartData {
   time: UTCTimestamp;
@@ -53,17 +48,26 @@ const ExternalLink2 = ({ href, icon, children }: { href: string; icon: React.Rea
 
 export const CryptoDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { likes, toggleLike } = useLikes();
   const { setLastVisitedPath } = useMarketNavigation();
+  const { getCryptoById } = useCryptoData();
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [cryptoDetails, setCryptoDetails] = useState<CryptoData | null>(null);
+  const [cryptoDetails, setCryptoDetails] = useState<any>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
 
+  const cryptoData = id ? getCryptoById(id) : undefined;
   const isLiked = id ? likes.includes(id) : false;
+
+  useEffect(() => {
+    if (!cryptoData) {
+      navigate('/');
+    }
+  }, [cryptoData, navigate]);
 
   useEffect(() => {
     if (id) {
@@ -153,7 +157,7 @@ export const CryptoDetail = () => {
     );
   }
 
-  if (error || !cryptoDetails) {
+  if (error || !cryptoDetails || !cryptoData) {
     return (
       <div className="container mx-auto p-4">
         <div className="bg-cyber-dark rounded-lg p-6 border border-red-500/20 text-center">
@@ -170,7 +174,7 @@ export const CryptoDetail = () => {
     );
   }
 
-  const isPositive = cryptoDetails.price_change_percentage_24h > 0;
+  const isPositive = cryptoData.price_change_percentage_24h > 0;
   const description = cryptoDetails.description || 'No description available.';
 
   return (
@@ -229,13 +233,13 @@ export const CryptoDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2 bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20">
           <div className="flex items-center space-x-4 mb-6">
-            <img src={cryptoDetails.image} alt={cryptoDetails.name} className="w-12 h-12" />
+            <img src={cryptoData.image} alt={cryptoData.name} className="w-12 h-12" />
             <div>
               <h1 className="text-2xl font-bold text-white">
-                {cryptoDetails.name} ({cryptoDetails.symbol.toUpperCase()})
+                {cryptoData.name} ({cryptoData.symbol.toUpperCase()})
               </h1>
               <p className="text-gray-400">
-                Rank #{cryptoDetails.market_cap_rank}
+                Rank #{cryptoData.market_cap_rank}
               </p>
             </div>
           </div>
@@ -243,7 +247,7 @@ export const CryptoDetail = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <p className="text-3xl font-bold text-white mb-2">
-                {formatCurrency(cryptoDetails.current_price)}
+                {formatCurrency(cryptoData.current_price)}
               </p>
               <div className="flex items-center space-x-2">
                 {isPositive ? (
@@ -252,7 +256,7 @@ export const CryptoDetail = () => {
                   <TrendingDown className="w-4 h-4 text-red-500" />
                 )}
                 <span className={isPositive ? 'text-green-500' : 'text-red-500'}>
-                  {formatPercentage(cryptoDetails.price_change_percentage_24h)}
+                  {formatPercentage(cryptoData.price_change_percentage_24h)}
                 </span>
               </div>
             </div>
@@ -260,11 +264,11 @@ export const CryptoDetail = () => {
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">Market Cap</span>
-                <span className="text-white">{formatCurrency(cryptoDetails.market_cap)}</span>
+                <span className="text-white">{formatCurrency(cryptoData.market_cap)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">24h Volume</span>
-                <span className="text-white">{formatCurrency(cryptoDetails.total_volume)}</span>
+                <span className="text-white">{formatCurrency(cryptoData.total_volume)}</span>
               </div>
             </div>
           </div>
@@ -292,7 +296,7 @@ export const CryptoDetail = () => {
 
       {/* About Section */}
       <div className="bg-cyber-dark rounded-lg p-6 border border-cyber-blue/20 mb-6">
-        <h2 className="text-2xl font-bold text-white mb-4">About {cryptoDetails.name}</h2>
+        <h2 className="text-2xl font-bold text-white mb-4">About {cryptoData.name}</h2>
         <div className={`prose prose-invert max-w-none ${!showFullDescription && 'line-clamp-4'}`}
              dangerouslySetInnerHTML={{ __html: description }}
         />
@@ -311,7 +315,7 @@ export const CryptoDetail = () => {
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-white">Price Chart (Last 30 days)</h2>
           <p className="text-gray-400">
-            Last updated: {formatDistanceToNow(new Date(cryptoDetails.last_updated), { addSuffix: true })}
+            Last updated: {formatDistanceToNow(new Date(cryptoData.last_updated), { addSuffix: true })}
           </p>
         </div>
         <div ref={chartContainerRef} className="w-full" />
@@ -353,7 +357,7 @@ export const CryptoDetail = () => {
             {cryptoDetails.links?.blockchain_site?.[0] && (
               <ExternalLink2
                 href={cryptoDetails.links.blockchain_site[0]}
-                icon={<Code className="w-5 h-5" />}
+                icon={<Globe className="w-5 h-5" />}
               >
                 Explorer
               </ExternalLink2>
@@ -392,15 +396,6 @@ export const CryptoDetail = () => {
                 icon={<MessageCircle className="w-5 h-5" />}
               >
                 Reddit
-              </ExternalLink2>
-            )}
-
-            {cryptoDetails.links?.announcement_url?.[0] && (
-              <ExternalLink2
-                href={cryptoDetails.links.announcement_url[0]}
-                icon={<Info className="w-5 h-5" />}
-              >
-                Announcements
               </ExternalLink2>
             )}
           </div>
