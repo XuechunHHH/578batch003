@@ -11,10 +11,33 @@ export class SocialMediaService {
     .eq('source', source)
     .order('time', { ascending: false })
     .range(start, end);
-
     if (type) {
       query = query.eq('type', type);
     }
+    if (source === 'reddit') {
+      query = supabase
+          .from('reddit_sentiment')
+          .select('*')
+          .order('time', { ascending: false })
+          .range(start, end);
+      if (type) {
+        const anotherTypeIdMapping = {
+          binancecoin: 'BNB',
+          ripple: 'XRP',
+          'usd-coin': 'USDC',
+          'avalanche-2': 'Avalanche',
+          bitcoin: 'Bitcoin',
+          ethereum: 'Ethereum',
+          tether: 'Tether',
+          solana: 'Solana',
+          dogecoin: 'Dogecoin',
+          cardano: 'Cardano',
+        };
+        const dbType = anotherTypeIdMapping[type];
+        query = query.eq('type', dbType);
+      }
+    }
+
     const { data, error } = await query;
 
     if (error) {

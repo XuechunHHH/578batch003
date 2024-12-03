@@ -439,6 +439,23 @@ export class MentionsService {
         cardano: 'Cardano',
       };
       const dbType = anotherTypeIdMapping[cryptoId];
+
+      // mitigate the timeout issue: canceling statement due to statement timeout
+      // by executing a heavy-load statement first
+      // this one can fail with minor consequence
+      try {
+        const { data:dataTest, error:errorTest } = await this.supabase
+            .from('olderreddit')
+            .select('count', { count: 'exact' });
+        let countTest = dataTest.length > 0 ? dataTest[0].count : 0;
+        if (errorTest) {
+          console.log('DB warmup done!');
+        }
+      }
+      catch (error) {
+        console.log('DB WARMUP done!');
+      }
+
       const monthlyMentions = await Promise.all(months.map(async (monthDate) => {
         const startTime = startOfMonth(monthDate).toISOString();
         const endTime = endOfMonth(monthDate).toISOString();

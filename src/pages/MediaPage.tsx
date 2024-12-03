@@ -70,6 +70,7 @@ export const MediaPage = () => {
               <option value="hackernews">Hacker News</option>
               <option value="devto">Dev.to</option>
               <option value="latimes">LA Times</option>
+              <option value="reddit">Reddit</option>
             </select>
           </div>
 
