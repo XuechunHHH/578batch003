@@ -21,7 +21,20 @@ export class SocialMediaService {
           .order('time', { ascending: false })
           .range(start, end);
       if (type) {
-        query = query.eq('type', type);
+        const anotherTypeIdMapping = {
+          binancecoin: 'BNB',
+          ripple: 'XRP',
+          'usd-coin': 'USDC',
+          'avalanche-2': 'Avalanche',
+          bitcoin: 'Bitcoin',
+          ethereum: 'Ethereum',
+          tether: 'Tether',
+          solana: 'Solana',
+          dogecoin: 'Dogecoin',
+          cardano: 'Cardano',
+        };
+        const dbType = anotherTypeIdMapping[type];
+        query = query.eq('type', dbType);
       }
     }
 
