@@ -303,7 +303,10 @@ export class MentionsService {
 
   async collectMentionsData() {
     console.log('Starting daily mentions data collection...');
-    const cryptos = ['bitcoin', 'ethereum', 'tether', 'solana', 'binancecoin', 'ripple', 'usd-coin', 'cardano', 'avalanche-2', 'dogecoin'];
+
+    // try to update bitcoin secondly because of its heavy duty nature
+    const cryptos = ['ethereum', 'bitcoin', 'tether', 'solana', 'binancecoin', 'ripple',
+      'usd-coin', 'cardano', 'avalanche-2', 'dogecoin'];
     
     for (const crypto of cryptos) {
       try {
@@ -446,10 +449,15 @@ export class MentionsService {
             .eq('type', dbType)
             .gte('Created_UTC', startTime)
             .lte('Created_UTC', endTime);
+        let count = 0;
         if (error) {
-          throw new Error(`Error querying Supabase reddit: ${error.message}`);
+          console.log('Retriving '+ cryptoId + ' from reddit between ' + startOfMonth(monthDate) +
+              ' and ' + endOfMonth(monthDate) + ' failed!');
+          //throw new Error(`Error querying Supabase reddit: ${error.message}`);
         }
-        const count = data.length > 0 ? data[0].count : 0; // Default to 0 if no rows
+        else {
+          count = data.length > 0 ? data[0].count : 0;
+        }
         // older data (before Oct)
         const { data:data2, error:error2 } = await this.supabase
             .from('olderreddit')
@@ -457,9 +465,14 @@ export class MentionsService {
             .eq('type', dbType)
             .gte('Created_UTC', startTime)
             .lte('Created_UTC', endTime);
-        const count2 = data2.length > 0 ? data2[0].count : 0; // Default to 0 if no rows
+        let count2 = 0;
         if (error2) {
-          throw new Error(`Error querying Supabase olderreddit: ${error2.message}`);
+          //throw new Error(`Error querying Supabase olderreddit: ${error2.message}`);
+          console.log('Retriving '+ cryptoId + ' from older-reddit between ' + startOfMonth(monthDate) +
+              ' and ' + endOfMonth(monthDate) + ' failed: ' + error2.message);
+        }
+        else {
+          count2 = data2.length > 0 ? data2[0].count : 0;
         }
         // merge two data sources
         return (count + count2) || 0;
