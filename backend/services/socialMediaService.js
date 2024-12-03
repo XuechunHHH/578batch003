@@ -11,10 +11,20 @@ export class SocialMediaService {
     .eq('source', source)
     .order('time', { ascending: false })
     .range(start, end);
-
     if (type) {
       query = query.eq('type', type);
     }
+    if (source === 'reddit') {
+      query = supabase
+          .from('reddit_sentiment')
+          .select('*')
+          .order('time', { ascending: false })
+          .range(start, end);
+      if (type) {
+        query = query.eq('type', type);
+      }
+    }
+
     const { data, error } = await query;
 
     if (error) {
